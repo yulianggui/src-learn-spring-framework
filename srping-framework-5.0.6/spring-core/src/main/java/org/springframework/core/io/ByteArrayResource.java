@@ -33,6 +33,8 @@ import org.springframework.util.Assert;
  * Particularly useful for creating mail attachments from local content,
  * where JavaMail needs to be able to read the stream multiple times.
  *
+ * 对应从本地内容创建邮件附件非常有用，
+ * 因为JavaMail需要能够多次读取流
  * @author Juergen Hoeller
  * @author Sam Brannen
  * @since 1.2.3
@@ -48,6 +50,7 @@ public class ByteArrayResource extends AbstractResource {
 
 
 	/**
+	 * 传入给定的字节数组，读取内容，数据源
 	 * Create a new {@code ByteArrayResource}.
 	 * @param byteArray the byte array to wrap
 	 */
@@ -91,6 +94,8 @@ public class ByteArrayResource extends AbstractResource {
 	}
 
 	/**
+	 * 吧 字节转为 InputStream 流，这里返回的是 ByteArrayInputStream
+	 *
 	 * This implementation returns a ByteArrayInputStream for the
 	 * underlying byte array.
 	 * @see java.io.ByteArrayInputStream

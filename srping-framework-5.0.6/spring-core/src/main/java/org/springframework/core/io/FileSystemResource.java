@@ -56,6 +56,15 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 
 
 	/**
+	 * 使用当前的构造方法
+	 * 当建立相对路径通过，相对路径将会应用在于当前文件同样的路径
+	 * C:/dir1  -- 在 dir1 的相对路径下创建 dir2  --> C:/dir2
+	 *
+	 * 如果你期望当前的文件目录作为 root ，则你需要使用 FileSystemResource(String) 构造方法
+	 * 并且在 C:/dir1 中加入 C:/dir1/ 一个尾斜杠。 表示此目录为所有相对路径的根
+	 *
+	 * 主要 path 成员变量存放 C:/dir1 | C:/dir1/
+	 *
 	 * Create a new {@code FileSystemResource} from a {@link File} handle.
 	 * <p>Note: When building relative resources via {@link #createRelative},
 	 * the relative path will apply <i>at the same directory level</i>:
@@ -69,6 +78,7 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 	public FileSystemResource(File file) {
 		Assert.notNull(file, "File must not be null");
 		this.file = file;
+		// 处理传入的路径  例如去掉 mypath/myfile/../../mypath/myfile ，（mypath/myfile/../../ 又退回到 mypath 的上级了）解析出来 mypath/myfile
 		this.path = StringUtils.cleanPath(file.getPath());
 	}
 
@@ -90,6 +100,7 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 
 
 	/**
+	 * 获取文件的路径（文件或者文件夹）
 	 * Return the file path for this resource.
 	 */
 	public final String getPath() {
@@ -106,6 +117,7 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 	}
 
 	/**
+	 * File 可读 并且不是 目录（文件夹）
 	 * This implementation checks whether the underlying file is marked as readable
 	 * (and corresponds to an actual file with content, not to a directory).
 	 * @see java.io.File#canRead()
@@ -222,7 +234,10 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 	 */
 	@Override
 	public Resource createRelative(String relativePath) {
+		// 根据当文件File 的路径，与传入的 relativePath 解析到相对路径
+		// 其实这里就是 拿到当前 File 的路径，然后根据 relativePath ，去解析到最终要创建的 文件的路径
 		String pathToUse = StringUtils.applyRelativePath(this.path, relativePath);
+		// 同样返回的是 FileSystemResource 实现类
 		return new FileSystemResource(pathToUse);
 	}
 
@@ -236,6 +251,7 @@ public class FileSystemResource extends AbstractResource implements WritableReso
 	}
 
 	/**
+	 * 描述返回的是 文件的绝对路径
 	 * This implementation returns a description that includes the absolute
 	 * path of the file.
 	 * @see java.io.File#getAbsolutePath()

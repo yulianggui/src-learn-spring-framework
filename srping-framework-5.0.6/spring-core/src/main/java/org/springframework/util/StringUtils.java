@@ -625,6 +625,8 @@ public abstract class StringUtils {
 	}
 
 	/**
+	 *
+	 * {@link org.springframework.util.StringUtilsTests#testCleanPath()}
 	 * Normalize the path by suppressing sequences like "path/.." and
 	 * inner simple dots.
 	 * <p>The result is convenient for path comparison. For other uses,

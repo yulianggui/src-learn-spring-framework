@@ -51,6 +51,8 @@ public class FileSystemResourceLoader extends DefaultResourceLoader {
 		if (path.startsWith("/")) {
 			path = path.substring(1);
 		}
+		// 为什么要用 FileSystemContextResource，因为要添加 getPathWithinContext 的功能
+		// 实现 ContextResource 接口，并实现对应的 #getPathWithinContext() 接口方法
 		return new FileSystemContextResource(path);
 	}
 

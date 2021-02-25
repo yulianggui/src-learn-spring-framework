@@ -48,6 +48,9 @@ public class InputStreamResource extends AbstractResource {
 
 	private final String description;
 
+	/**
+	 * 标志位， inputStream 是否已经调用过 getInputStream 方法
+	 */
 	private boolean read = false;
 
 

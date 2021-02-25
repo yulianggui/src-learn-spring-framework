@@ -31,6 +31,8 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.ResourceUtils;
 
 /**
+ * 对 Resource 的简单实现，实现能共用的底层方法
+ *
  * Convenience base class for {@link Resource} implementations,
  * pre-implementing typical behavior.
  *
@@ -44,6 +46,9 @@ import org.springframework.util.ResourceUtils;
 public abstract class AbstractResource implements Resource {
 
 	/**
+	 *
+	 * 判断文件是否存在，若判断过程产生异常（因为会调用SecurityManager来判断），就关闭对应的流
+	 *
 	 * This implementation checks whether a File can be opened,
 	 * falling back to whether an InputStream can be opened.
 	 * This will cover both directories and content resources.
@@ -52,11 +57,15 @@ public abstract class AbstractResource implements Resource {
 	public boolean exists() {
 		// Try file existence: can we find the file in the file system?
 		try {
+			// 优先获取文件，java.io.File，看是否存在
+			// 即优先基于 File 来判断
 			return getFile().exists();
 		}
 		catch (IOException ex) {
 			// Fall back to stream existence: can we open the stream?
 			try {
+				// 尝试用获取字节流，看字节流是否存在
+				// 基于 InputStream 字节流实现
 				InputStream is = getInputStream();
 				is.close();
 				return true;
@@ -106,6 +115,7 @@ public abstract class AbstractResource implements Resource {
 	 */
 	@Override
 	public URI getURI() throws IOException {
+		// 要获取 URI ，必须先解析到 URL
 		URL url = getURL();
 		try {
 			return ResourceUtils.toURI(url);
@@ -125,6 +135,8 @@ public abstract class AbstractResource implements Resource {
 	}
 
 	/**
+	 * 根据 getInputStream() 的返回结果构建 ReadableByteChannel
+	 *
 	 * This implementation returns {@link Channels#newChannel(InputStream)}
 	 * with the result of {@link #getInputStream()}.
 	 * <p>This is the same as in {@link Resource}'s corresponding default method
@@ -143,6 +155,7 @@ public abstract class AbstractResource implements Resource {
 	 */
 	@Override
 	public long contentLength() throws IOException {
+		// 通过字节流，读取计算加载字节流长度
 		InputStream is = getInputStream();
 		try {
 			long size = 0;
@@ -169,6 +182,8 @@ public abstract class AbstractResource implements Resource {
 	 */
 	@Override
 	public long lastModified() throws IOException {
+		// 为什么要通过 getFileForLastModifiedCheck 来调用返回 File ？ 提供了默认实现（默认调用 getFile 方法获取文件）
+		// 子类覆盖可以覆盖
 		long lastModified = getFileForLastModifiedCheck().lastModified();
 		if (lastModified == 0L) {
 			throw new FileNotFoundException(getDescription() +
@@ -178,6 +193,7 @@ public abstract class AbstractResource implements Resource {
 	}
 
 	/**
+	 * 确定用于时间戳检查的文件
 	 * Determine the File to use for timestamp checking.
 	 * <p>The default implementation delegates to {@link #getFile()}.
 	 * @return the File to use for timestamp checking (never {@code null})

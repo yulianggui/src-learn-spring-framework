@@ -40,6 +40,9 @@ import org.springframework.util.StringUtils;
  * and a {@link ClassPathResource} if it is a non-URL path or a
  * "classpath:" pseudo-URL.
  *
+ *  {@link org.springframework.core.io.ResourceEditorTests#testStrictSystemPropertyReplacement()}
+ *
+ *
  * @author Juergen Hoeller
  * @since 10.03.2004
  * @see FileSystemResourceLoader
@@ -47,11 +50,20 @@ import org.springframework.util.StringUtils;
  */
 public class DefaultResourceLoader implements ResourceLoader {
 
+	/**
+	 * Resource 类加载器
+	 */
 	@Nullable
 	private ClassLoader classLoader;
 
+	/**
+	 * 协议解析 功能
+	 */
 	private final Set<ProtocolResolver> protocolResolvers = new LinkedHashSet<>(4);
 
+	/**
+	 * 加载的资源集合
+	 */
 	private final Map<Class<?>, Map<Resource, ?>> resourceCaches = new ConcurrentHashMap<>(4);
 
 
@@ -98,6 +110,9 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
+	 * 添加协议解析器
+	 *    ProtocolResolver 可以解析到 Resource ,即用户自定义解析 Resource 的逻辑
+	 *
 	 * Register the given resolver with this resource loader, allowing for
 	 * additional protocols to be handled.
 	 * <p>Any such resolver will be invoked ahead of this loader's standard
@@ -111,6 +126,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	}
 
 	/**
+	 * 返回的是 Collection
 	 * Return the collection of currently registered protocol resolvers,
 	 * allowing for introspection as well as modification.
 	 * @since 4.3
@@ -144,6 +160,7 @@ public class DefaultResourceLoader implements ResourceLoader {
 	public Resource getResource(String location) {
 		Assert.notNull(location, "Location must not be null");
 
+		// 遍历所有的 协议解析器进行解析  这个是用户自定义的。扩展点之一，设置思路可以借鉴
 		for (ProtocolResolver protocolResolver : this.protocolResolvers) {
 			Resource resource = protocolResolver.resolve(location, this);
 			if (resource != null) {
@@ -151,20 +168,29 @@ public class DefaultResourceLoader implements ResourceLoader {
 			}
 		}
 
+		// 如果自定义解析器无法获取
+
+
+		// 1、如果 以 / 开头，返回 ClassPathContextResource
 		if (location.startsWith("/")) {
+			// 为什么这样要走 ClassPathContextResource ？？
 			return getResourceByPath(location);
 		}
+		// classpath: 开头
 		else if (location.startsWith(CLASSPATH_URL_PREFIX)) {
 			return new ClassPathResource(location.substring(CLASSPATH_URL_PREFIX.length()), getClassLoader());
 		}
 		else {
 			try {
+				// 如果 文件的RUL, 则返回 FileUrlResource ，否则返回 UrlResource
 				// Try to parse the location as a URL...
 				URL url = new URL(location);
 				return (ResourceUtils.isFileURL(url) ? new FileUrlResource(url) : new UrlResource(url));
 			}
 			catch (MalformedURLException ex) {
 				// No URL -> resolve as resource path.
+				// ClassPathContextResource 返回这个
+				// D:/Users/chenming673/Documents/spark.txt 此种类型
 				return getResourceByPath(location);
 			}
 		}

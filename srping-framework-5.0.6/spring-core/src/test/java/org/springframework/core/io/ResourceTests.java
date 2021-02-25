@@ -169,6 +169,12 @@ public class ResourceTests {
 		Resource resource = new ClassPathResource("dir/");
 		Resource relative = resource.createRelative("subdir");
 		assertEquals(new ClassPathResource("dir/subdir"), relative);
+
+
+		// Resource 不保证读取得到资源， 要调用 exists 方法
+		Resource resource2 = new ClassPathResource("D:/project/WiseBrain/xxxxx.txt");
+		System.out.println(resource2.exists());
+
 	}
 
 	@Test

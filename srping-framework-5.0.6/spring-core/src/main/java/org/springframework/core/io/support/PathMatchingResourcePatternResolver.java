@@ -167,6 +167,11 @@ import org.springframework.util.StringUtils;
  * Ant-style pattern in such a case, which will search <i>all</i> class path
  * locations that contain the root package.
  *
+ *
+ *  获取多个 Resource[] 的功能
+ *  为 ResourcePatternResolver 最常用的子类，它除了支持 ResourceLoader 和 ResourcePatternResolver 新增的 "classpath*:"
+ *  前缀外，还支持 Ant 风格的路径匹配模式
+ *
  * @author Juergen Hoeller
  * @author Colin Sampaleanu
  * @author Marius Bogoevici
@@ -188,6 +193,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	static {
 		try {
 			// Detect Equinox OSGi (e.g. on WebSphere 6.1)
+			// 加载 org.eclipse.core.runtime.FileLocator
 			Class<?> fileLocatorClass = ClassUtils.forName("org.eclipse.core.runtime.FileLocator",
 					PathMatchingResourcePatternResolver.class.getClassLoader());
 			equinoxResolveMethod = fileLocatorClass.getMethod("resolve", URL.class);
@@ -275,14 +281,20 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	@Override
 	public Resource[] getResources(String locationPattern) throws IOException {
 		Assert.notNull(locationPattern, "Location pattern must not be null");
+
+		// classpath*: 的类型
 		if (locationPattern.startsWith(CLASSPATH_ALL_URL_PREFIX)) {
 			// a class path resource (multiple resources for same name possible)
+			// 默认为 AntPathMatcher 对象，用于支持 Ant 类型的路径匹配 ,Ant 类型，源码忽略
+			// 路径包含通配符
 			if (getPathMatcher().isPattern(locationPattern.substring(CLASSPATH_ALL_URL_PREFIX.length()))) {
 				// a class path resource pattern
 				return findPathMatchingResources(locationPattern);
 			}
 			else {
 				// all class path resources with the given name
+				// 关心这个
+				// 该方法返回 classes 路径下和所有 jar 包中的所有相匹配的资源
 				return findAllClassPathResources(locationPattern.substring(CLASSPATH_ALL_URL_PREFIX.length()));
 			}
 		}
@@ -316,6 +328,8 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 		if (path.startsWith("/")) {
 			path = path.substring(1);
 		}
+		// 查找
+		// 真正执行加载所有 classpath 资源
 		Set<Resource> result = doFindAllClassPathResources(path);
 		if (logger.isDebugEnabled()) {
 			logger.debug("Resolved classpath location [" + location + "] to resources " + result);
@@ -333,14 +347,19 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	protected Set<Resource> doFindAllClassPathResources(String path) throws IOException {
 		Set<Resource> result = new LinkedHashSet<>(16);
 		ClassLoader cl = getClassLoader();
+		// cl 类加载器不为 null , 则只需 cl.getResources(path)，否则调用静态方法
 		Enumeration<URL> resourceUrls = (cl != null ? cl.getResources(path) : ClassLoader.getSystemResources(path));
+		// 得到所有的 Enumeration<URL>，遍历解析
 		while (resourceUrls.hasMoreElements()) {
 			URL url = resourceUrls.nextElement();
+			// convertClassLoaderURL 解析为 Resource (UrlResource)
 			result.add(convertClassLoaderURL(url));
 		}
 		if ("".equals(path)) {
 			// The above result is likely to be incomplete, i.e. only containing file system references.
 			// We need to have pointers to each of the jar files on the classpath as well...
+			// 如果 最外层传入的是 classpath*:/ ，则到这里 得到 ""，就会走这个逻辑
+			// 加载路径下的所有 jar 包
 			addAllClassLoaderJarRoots(cl, result);
 		}
 		return result;
@@ -366,6 +385,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @since 4.1.1
 	 */
 	protected void addAllClassLoaderJarRoots(@Nullable ClassLoader classLoader, Set<Resource> result) {
+		// URLClassLoader
 		if (classLoader instanceof URLClassLoader) {
 			try {
 				for (URL url : ((URLClassLoader) classLoader).getURLs()) {

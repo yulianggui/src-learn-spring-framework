@@ -33,6 +33,9 @@ import org.springframework.lang.Nullable;
  * this interface. It only serves as suggestion for bean definition
  * readers that want to follow standard naming conventions.
  *
+ *
+ *  BeanDefinitionReader 主要定义资源文件读取并转换为，并转换为 BeanDefinition
+ *
  * @author Juergen Hoeller
  * @since 1.1
  * @see org.springframework.core.io.Resource
@@ -40,6 +43,7 @@ import org.springframework.lang.Nullable;
 public interface BeanDefinitionReader {
 
 	/**
+	 * 得到 BeanDefinitionRegistry 注册器
 	 * Return the bean factory to register the bean definitions with.
 	 * <p>The factory is exposed through the BeanDefinitionRegistry interface,
 	 * encapsulating the methods that are relevant for bean definition handling.
@@ -47,6 +51,7 @@ public interface BeanDefinitionReader {
 	BeanDefinitionRegistry getRegistry();
 
 	/**
+	 * 得到 解析 bean 定义的资源 ResourceLoader
 	 * Return the resource loader to use for resource locations.
 	 * Can be checked for the <b>ResourcePatternResolver</b> interface and cast
 	 * accordingly, for loading multiple resources for a given resource pattern.
@@ -76,6 +81,8 @@ public interface BeanDefinitionReader {
 	ClassLoader getBeanClassLoader();
 
 	/**
+	 * 得到 BeanName 生成器
+	 *
 	 * Return the BeanNameGenerator to use for anonymous beans
 	 * (without explicit bean name specified).
 	 */
@@ -83,6 +90,9 @@ public interface BeanDefinitionReader {
 
 
 	/**
+	 * 通过 Resource 一个资源将 资源内容 解析为 BeanDefinition 返回解析的个数
+	 *   注册到 BeanFactory 中
+	 *
 	 * Load bean definitions from the specified resource.
 	 * @param resource the resource descriptor
 	 * @return the number of bean definitions found

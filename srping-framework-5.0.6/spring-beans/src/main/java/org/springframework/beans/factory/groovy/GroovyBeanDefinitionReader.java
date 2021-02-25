@@ -216,7 +216,8 @@ public class GroovyBeanDefinitionReader extends AbstractBeanDefinitionReader imp
 	 * @return the number of bean definitions found
 	 * @throws BeanDefinitionStoreException in case of loading or parsing errors
 	 */
-	public int loadBeanDefinitions(Resource resource) throws BeanDefinitionStoreException {
+	@Override
+    public int loadBeanDefinitions(Resource resource) throws BeanDefinitionStoreException {
 		return loadBeanDefinitions(new EncodedResource(resource));
 	}
 

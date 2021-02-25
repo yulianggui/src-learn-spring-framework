@@ -40,6 +40,9 @@ import org.springframework.util.Assert;
  * <p>Provides common properties like the bean factory to work on
  * and the class loader to use for loading bean classes.
  *
+ *
+ * EnvironmentCapable 剧本获取 Environment 的功能
+ *
  * @author Juergen Hoeller
  * @author Chris Beams
  * @since 11.12.2003
@@ -50,6 +53,9 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 	/** Logger available to subclasses */
 	protected final Log logger = LogFactory.getLog(getClass());
 
+	/**
+	 * beanFactory 注册器
+	 */
 	private final BeanDefinitionRegistry registry;
 
 	@Nullable
@@ -89,6 +95,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 			this.resourceLoader = (ResourceLoader) this.registry;
 		}
 		else {
+			// 可以解析 classpath*: 的 资源加载器
 			this.resourceLoader = new PathMatchingResourcePatternResolver();
 		}
 
@@ -97,6 +104,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 			this.environment = ((EnvironmentCapable) this.registry).getEnvironment();
 		}
 		else {
+			// 标准的 StandardEnvironment
 			this.environment = new StandardEnvironment();
 		}
 	}
@@ -185,6 +193,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 		int counter = 0;
 		// counter 记录解析到的 BeanDefinitions 的个数
 		for (Resource resource : resources) {
+			// 子类实现
 			counter += loadBeanDefinitions(resource);
 		}
 		return counter;
@@ -211,17 +220,22 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 	 * @see #loadBeanDefinitions(org.springframework.core.io.Resource[])
 	 */
 	public int loadBeanDefinitions(String location, @Nullable Set<Resource> actualResources) throws BeanDefinitionStoreException {
+
+		// 拿到当前的 getResourceLoader （有可能被子类覆盖，这里也体现了一种设计代码的思想）
 		ResourceLoader resourceLoader = getResourceLoader();
 		if (resourceLoader == null) {
 			throw new BeanDefinitionStoreException(
 					"Cannot import bean definitions from location [" + location + "]: no ResourceLoader available");
 		}
 
+		// 如果可以解析 classpath:*，即可以解析多个的
 		if (resourceLoader instanceof ResourcePatternResolver) {
 			// Resource pattern matching available.
 			try {
 				Resource[] resources = ((ResourcePatternResolver) resourceLoader).getResources(location);
 				int loadCount = loadBeanDefinitions(resources);
+				// 如果 actualResources 不为 null，actualResources 也要存一份 resources
+				// 这里是为啥 ？？？
 				if (actualResources != null) {
 					for (Resource resource : resources) {
 						actualResources.add(resource);
@@ -237,6 +251,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 						"Could not resolve bean definition resource pattern [" + location + "]", ex);
 			}
 		}
+		// 否则，解析单个 resource 的
 		else {
 			// Can only load single resources by absolute URL.
 			Resource resource = resourceLoader.getResource(location);

@@ -64,6 +64,9 @@ import org.springframework.util.xml.XmlValidationModeDetector;
  * talking to the latter's implementation of the
  * {@link org.springframework.beans.factory.support.BeanDefinitionRegistry} interface.
  *
+ *
+ *  Xml bean 解析
+ *
  * @author Juergen Hoeller
  * @author Rob Harrop
  * @author Chris Beams
@@ -105,26 +108,53 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
 	private boolean namespaceAware = false;
 
+	/**
+	 * 文档读取到的 class ??
+	 */
 	private Class<?> documentReaderClass = DefaultBeanDefinitionDocumentReader.class;
 
+	/**
+	 * 记录错误信息，快速失败
+	 */
 	private ProblemReporter problemReporter = new FailFastProblemReporter();
 
+	/**
+	 * 事件监听器
+	 */
 	private ReaderEventListener eventListener = new EmptyReaderEventListener();
 
 	private SourceExtractor sourceExtractor = new NullSourceExtractor();
 
+	/**
+	 * 命名服务处理类 beans | bean 等，自定义标签等
+	 */
 	@Nullable
 	private NamespaceHandlerResolver namespaceHandlerResolver;
 
+	/**
+	 * xml 文档解析
+	 */
 	private DocumentLoader documentLoader = new DefaultDocumentLoader();
 
+	/**
+	 * xml 实体
+	 */
 	@Nullable
 	private EntityResolver entityResolver;
 
+	/**
+	 * xml 解析错误处理类
+	 */
 	private ErrorHandler errorHandler = new SimpleSaxErrorHandler(logger);
 
+	/**
+	 * 校验器
+	 */
 	private final XmlValidationModeDetector validationModeDetector = new XmlValidationModeDetector();
 
+	/**
+	 * 当前线程，正在加载的 EncodedResource 集合
+	 */
 	private final ThreadLocal<Set<EncodedResource>> resourcesCurrentlyBeingLoaded =
 			new NamedThreadLocal<>("XML bean definition resources currently being loaded");
 
@@ -300,6 +330,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 */
 	@Override
 	public int loadBeanDefinitions(Resource resource) throws BeanDefinitionStoreException {
+		// 支持编码的 Resource，保证读取的内容的正确性
 		return loadBeanDefinitions(new EncodedResource(resource));
 	}
 
@@ -316,8 +347,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 			logger.info("Loading XML bean definitions from " + encodedResource.getResource());
 		}
 
-		// 当前线程中是否有资源属性
-		// 这里不理解为啥要这样用？
+		// 当前线程中是否有资源属性，获取已经加载过的资源
 		Set<EncodedResource> currentResources = this.resourcesCurrentlyBeingLoaded.get();
 		if (currentResources == null) {
 			currentResources = new HashSet<>(4);
@@ -352,7 +382,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 					"IOException parsing XML document from " + encodedResource.getResource(), ex);
 		}
 		finally {
-			// 解析完毕，删除
+			// 解析完毕，删除 encodedResource
 			currentResources.remove(encodedResource);
 			if (currentResources.isEmpty()) {
 				// 如果为空， Set<EncodedResource> currentResources 把这个从 Thread 中删除
@@ -400,7 +430,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		try {
 			// 解析得到 Document
 			Document doc = doLoadDocument(inputSource, resource);
-			// 注册BeanDefinitions
+			// 注册BeanDefinitions ,这里为什么还要传入 resource?
 			return registerBeanDefinitions(doc, resource);
 		}
 		// 这里由 BeanDefinitionStoreException 衍生出了 BeanDefinitionStoreException
@@ -526,6 +556,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		// 先获取当前已经注册了多个
 		int countBefore = getRegistry().getBeanDefinitionCount();
 		// 真正到了解析 XML Document 的逻辑了
+		// DefaultBeanDefinitionDocumentReader
 		documentReader.registerBeanDefinitions(doc, createReaderContext(resource));
 		// 本次Document 中的Bean 解析个数为 当前 getRegistry - 解析该Document 之前的
 		return getRegistry().getBeanDefinitionCount() - countBefore;

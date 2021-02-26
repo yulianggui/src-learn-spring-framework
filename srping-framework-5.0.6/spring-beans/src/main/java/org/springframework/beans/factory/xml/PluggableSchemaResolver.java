@@ -112,6 +112,8 @@ public class PluggableSchemaResolver implements EntityResolver {
 		}
 
 		if (systemId != null) {
+			// 获取资源位置，获取之后，用 classpath:xxxx 解析
+			// 获取，并放到 map 中做缓存映射，解析完毕，将 systemId 对应的resourceLocation xx.xsd 读取处理
 			String resourceLocation = getSchemaMappings().get(systemId);
 			if (resourceLocation != null) {
 				Resource resource = new ClassPathResource(resourceLocation, this.classLoader);
@@ -141,18 +143,26 @@ public class PluggableSchemaResolver implements EntityResolver {
 		Map<String, String> schemaMappings = this.schemaMappings;
 		if (schemaMappings == null) {
 			synchronized (this) {
+				// 重新获取 schemaMappings 的地址
 				schemaMappings = this.schemaMappings;
 				if (schemaMappings == null) {
 					if (logger.isDebugEnabled()) {
 						logger.debug("Loading schema mappings from [" + this.schemaMappingsLocation + "]");
 					}
 					try {
+						// PropertiesLoaderUtils 工具类加载
+						// 例如： META-INF/spring.schemas 里边存放的是 key-value
+
+						// http\://mybatis.org/schema/mybatis-spring-1.2.xsd=org/mybatis/spring/config/mybatis-spring-1.2.xsd
+						// http\://mybatis.org/schema/mybatis-spring.xsd=org/mybatis/spring/config/mybatis-spring-1.2.xsd
+
 						Properties mappings =
 								PropertiesLoaderUtils.loadAllProperties(this.schemaMappingsLocation, this.classLoader);
 						if (logger.isDebugEnabled()) {
 							logger.debug("Loaded schema mappings: " + mappings);
 						}
 						Map<String, String> mappingsToUse = new ConcurrentHashMap<>(mappings.size());
+						// CollectionUtils 工具类合并集合，这里其实就是 copy 工具
 						CollectionUtils.mergePropertiesIntoMap(mappings, mappingsToUse);
 						schemaMappings = mappingsToUse;
 						this.schemaMappings = schemaMappings;

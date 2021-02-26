@@ -73,14 +73,22 @@ public class ResourceEntityResolver extends DelegatingEntityResolver {
 	@Override
 	@Nullable
 	public InputSource resolveEntity(String publicId, @Nullable String systemId) throws SAXException, IOException {
+
+		// 优先调用子类的，获得 InputSource，如果没有找到，并且 systemId != null
 		InputSource source = super.resolveEntity(publicId, systemId);
 		if (source == null && systemId != null) {
 			String resourcePath = null;
+
+
+			// 观察这里的 try catch 的包装块，其实只包装了一部分
 			try {
 				String decodedSystemId = URLDecoder.decode(systemId, "UTF-8");
+				// URL 的方式 ，即 file:/// 等方式 | dtd
 				String givenUrl = new URL(decodedSystemId).toString();
+				// 解析文件资源的相对路径（相对于系统根路径）
 				String systemRootUrl = new File("").toURI().toURL().toString();
 				// Try relative to resource base if currently in system root.
+				// 解析文件资源的相对路径（相对于系统根路径）
 				if (givenUrl.startsWith(systemRootUrl)) {
 					resourcePath = givenUrl.substring(systemRootUrl.length());
 				}
@@ -97,6 +105,7 @@ public class ResourceEntityResolver extends DelegatingEntityResolver {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Trying to locate XML entity [" + systemId + "] as resource [" + resourcePath + "]");
 				}
+				// 读取的加载器，交由 resourceLoader 来实现，默认的 DefaultResourceLoader 就支持
 				Resource resource = this.resourceLoader.getResource(resourcePath);
 				source = new InputSource(resource.getInputStream());
 				source.setPublicId(publicId);

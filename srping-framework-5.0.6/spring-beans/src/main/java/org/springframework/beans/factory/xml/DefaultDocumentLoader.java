@@ -69,11 +69,17 @@ public class DefaultDocumentLoader implements DocumentLoader {
 	public Document loadDocument(InputSource inputSource, EntityResolver entityResolver,
 			ErrorHandler errorHandler, int validationMode, boolean namespaceAware) throws Exception {
 
+		// 工厂模式，通过 DocumentBuilderFactory xml DocumentBuilder
+		// 其实跟 Mybatis 解析 mybatis-config.xml 的编码设计一样
+
+		// SqlSessionFactoryBuilder --> SqlSessionFactoryBuilder.parse --> DefaultSqlSessionFactory
+
 		DocumentBuilderFactory factory = createDocumentBuilderFactory(validationMode, namespaceAware);
 		if (logger.isDebugEnabled()) {
 			logger.debug("Using JAXP provider [" + factory.getClass().getName() + "]");
 		}
 		DocumentBuilder builder = createDocumentBuilder(factory, entityResolver, errorHandler);
+		// 解析成为 Document 文档
 		return builder.parse(inputSource);
 	}
 
@@ -95,6 +101,7 @@ public class DefaultDocumentLoader implements DocumentLoader {
 			factory.setValidating(true);
 			if (validationMode == XmlValidationModeDetector.VALIDATION_XSD) {
 				// Enforce namespace aware for XSD...
+				// XSD 需要解析
 				factory.setNamespaceAware(true);
 				try {
 					factory.setAttribute(SCHEMA_LANGUAGE_ATTRIBUTE, XSD_SCHEMA_LANGUAGE);

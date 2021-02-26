@@ -23,6 +23,10 @@ import org.springframework.lang.Nullable;
  * Context that gets passed along a bean definition reading process,
  * encapsulating all relevant configuration as well as state.
  *
+ *
+ * 读取的上下文
+ *     封装了 读取失败、读监听事件记录、sourceExtractor（BeanDefinition 额外资源扩展信息）
+ *
  * @author Rob Harrop
  * @author Juergen Hoeller
  * @since 2.0
@@ -197,6 +201,8 @@ public class ReaderContext {
 	}
 
 	/**
+	 * 为给定的源对象调用源提取器
+	 *
 	 * Call the source extractor for the given source object.
 	 * @param sourceCandidate the original source object
 	 * @return the source object to store, or {@code null} for none.

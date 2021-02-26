@@ -91,30 +91,40 @@ public class XmlValidationModeDetector {
 		// Peek into the file to look for DOCTYPE.
 		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
 		try {
+			// 标志位，是否为 dtd 的模式
 			boolean isDtdValidated = false;
+			// 读取每一行
 			String content;
 			while ((content = reader.readLine()) != null) {
+				// 去掉 <!-- -->
 				content = consumeCommentTokens(content);
+				// 当前还在 <!-- 上半区，还没解析到 --> ，说明 <!-- --> 不在同一行，则继续读取下一行
 				if (this.inComment || !StringUtils.hasText(content)) {
 					continue;
 				}
+				// 非注释行了，判断是否有  DOCTYPE 关键字，有则表示 DTD 模式
 				if (hasDoctype(content)) {
 					isDtdValidated = true;
 					break;
 				}
+				// hasOpeningTag 方法会校验，如果这一行有 < ，并且 < 后面跟着的是字母，则返回 true
+				// 返回 true 表示非 DTD 了
 				if (hasOpeningTag(content)) {
 					// End of meaningful data...
 					break;
 				}
 			}
+			// 非DTD ，则返回 XSD
 			return (isDtdValidated ? VALIDATION_DTD : VALIDATION_XSD);
 		}
 		catch (CharConversionException ex) {
 			// Choked on some character encoding...
 			// Leave the decision up to the caller.
+			// 解析异常返回 自动获取，即其实未获取到，用户该咋办交由用户自己
 			return VALIDATION_AUTO;
 		}
 		finally {
+			// 关闭流
 			reader.close();
 		}
 	}
@@ -136,7 +146,9 @@ public class XmlValidationModeDetector {
 		if (this.inComment) {
 			return false;
 		}
+		// 找到 < 的索引
 		int openTagIndex = content.indexOf('<');
+		// 索引存在，且大于两个字符，并且第一个是字母
 		return (openTagIndex > -1 && (content.length() > openTagIndex + 1) &&
 				Character.isLetter(content.charAt(openTagIndex + 1)));
 	}
@@ -149,14 +161,20 @@ public class XmlValidationModeDetector {
 	 */
 	@Nullable
 	private String consumeCommentTokens(String line) {
+		// <!-- && -->
+		// 不包含注释，直接返回
 		if (!line.contains(START_COMMENT) && !line.contains(END_COMMENT)) {
 			return line;
 		}
+		// 去掉注释
 		String currLine = line;
+		// consume(currLine) , 这里会标注 inComment 标志位
+		// 循环剔除 <!-- -->
 		while ((currLine = consume(currLine)) != null) {
 			if (!this.inComment && !currLine.trim().startsWith(START_COMMENT)) {
 				return currLine;
 			}
+			// 到了下一个 <!-- --><!-- -->  解析出来得到  <!-- -->，还好继续执行
 		}
 		return null;
 	}
@@ -167,6 +185,11 @@ public class XmlValidationModeDetector {
 	 */
 	@Nullable
 	private String consume(String line) {
+		// 拿到 <!-- 或者 --> 标志位的索引
+		// 如果此时 inComment 为 true 标识已经被标识该行为 注释类
+		// endComment 和 startComment 都会 更新 inComment，并且返回 下标结束边界索引位，其中 endComment 将 inComment 设置为 false、startComment 设置为 true
+
+		// 如果是 startComment ，则去掉 <!--，返回后面的内容
 		int index = (this.inComment ? endComment(line) : startComment(line));
 		return (index == -1 ? null : line.substring(index));
 	}

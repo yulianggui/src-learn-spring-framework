@@ -205,6 +205,10 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 	}
 
 	/**
+	 *
+	 * classpath*: | classpath:
+	 * 如果是 classpath* 则可能存在多个 Resource
+	 *
 	 * Load bean definitions from the specified resource location.
 	 * <p>The location can also be a location pattern, provided that the
 	 * ResourceLoader of this bean definition reader is a ResourcePatternResolver.
@@ -235,7 +239,7 @@ public abstract class AbstractBeanDefinitionReader implements EnvironmentCapable
 				Resource[] resources = ((ResourcePatternResolver) resourceLoader).getResources(location);
 				int loadCount = loadBeanDefinitions(resources);
 				// 如果 actualResources 不为 null，actualResources 也要存一份 resources
-				// 这里是为啥 ？？？
+				// 这里是为啥 ？？？ -- 为了添加到 sourceExtract 中，进行应用（可以忽略）
 				if (actualResources != null) {
 					for (Resource resource : resources) {
 						actualResources.add(resource);

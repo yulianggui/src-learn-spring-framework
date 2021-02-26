@@ -229,6 +229,9 @@ public class BeanDefinitionParserDelegate {
 
 	private final XmlReaderContext readerContext;
 
+	/**
+	 * document 文档默认定义类
+	 */
 	private final DocumentDefaultsDefinition defaults = new DocumentDefaultsDefinition();
 
 	private final ParseState parseState = new ParseState();
@@ -297,6 +300,8 @@ public class BeanDefinitionParserDelegate {
 	}
 
 	/**
+	 * 设置 BeanDefinition 的一些默认值，比如 是否懒加载，是否 init-method 等，即 bean 的一些默认属性
+	 * {@link DocumentDefaultsDefinition}
 	 * Initialize the default lazy-init, autowire, dependency check settings,
 	 * init-method, destroy-method and merge settings. Support nested 'beans'
 	 * element use cases by falling back to the given parent in case the
@@ -305,7 +310,9 @@ public class BeanDefinitionParserDelegate {
 	 * @see #getDefaults()
 	 */
 	public void initDefaults(Element root, @Nullable BeanDefinitionParserDelegate parent) {
+		// parent 在这里体现到了。传递 信息，比如这里的  DefaultsDefinition
 		populateDefaults(this.defaults, (parent != null ? parent.defaults : null), root);
+		// 注册一个事件： 标签默认值设置好的通知
 		this.readerContext.fireDefaultsRegistered(this.defaults);
 	}
 
@@ -319,12 +326,15 @@ public class BeanDefinitionParserDelegate {
 	 * @param root the root element of the current bean definition document (or nested beans element)
 	 */
 	protected void populateDefaults(DocumentDefaultsDefinition defaults, @Nullable DocumentDefaultsDefinition parentDefaults, Element root) {
-		// 根据root 的属性defaults 默认的值
+		// 根据 标签的 一些属性 的 默认值, DEFAULT_LAZY_INIT_ATTRIBUTE 是 懒加载配置的 key
+		// DEFAULT_VALUE 是默认的值
 		String lazyInit = root.getAttribute(DEFAULT_LAZY_INIT_ATTRIBUTE);
 		if (DEFAULT_VALUE.equals(lazyInit)) {
 			// Potentially inherited from outer <beans> sections, otherwise falling back to false.
+			// 懒加载默认为 false
 			lazyInit = (parentDefaults != null ? parentDefaults.getLazyInit() : FALSE_VALUE);
 		}
+		// 而其在 DocumentDefaultDefinition 中是 false| true 存储
 		defaults.setLazyInit(lazyInit);
 
 		String merge = root.getAttribute(DEFAULT_MERGE_ATTRIBUTE);
@@ -362,6 +372,7 @@ public class BeanDefinitionParserDelegate {
 			defaults.setDestroyMethod(parentDefaults.getDestroyMethod());
 		}
 
+		// 这一段干嘛用的？？
 		defaults.setSource(this.readerContext.extractSource(root));
 	}
 

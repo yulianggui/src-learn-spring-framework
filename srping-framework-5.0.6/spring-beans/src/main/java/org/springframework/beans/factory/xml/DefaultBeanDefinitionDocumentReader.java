@@ -130,7 +130,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// then ultimately reset this.delegate back to its original (parent) reference.
 		// this behavior emulates a stack of delegates without actually necessitating one.
 
-		// 解析每一个 Bean 被委托到 BeanDefinitionParserDelegate -- // 父对象
+		// 解析每一个 Bean 被委托到 BeanDefinitionParserDelegate -- // 父对象，可能 beans 里边会解析 import 等另外文件的标签
+		// 另外 bean 内嵌 bean 标签等
 		// 首先记录上一个 BeanDefinitionParserDelegate 对象
 		BeanDefinitionParserDelegate parent = this.delegate;
 		// 创建一个新的 ParseDelegate 解析类，并且做了一些动作，会尝试与 存在子父 parent 关系的 init-method 等更新到 delegate 的默认值
@@ -219,10 +220,12 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 					Element ele = (Element) node;
 					// 是默认的 命名空间中的
 					if (delegate.isDefaultNamespace(ele)) {
-						// 解析spring 默认的元素
+						// 解析spring 默认的元素。 注意这里暂时没有直接 使用 delegate.parseDefaultElement ，而是
+						// 将 delegate 作为参数传递
 						parseDefaultElement(ele, delegate);
 					}
 					else {
+						// 客户自定义的标签
 						delegate.parseCustomElement(ele);
 					}
 				}
@@ -231,6 +234,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		else {
 			// 否则交给扩展类去解析--其实就是自定义标签，比如注解开关，spring-mvc 开关等
 			// 比如 dubbo 自定义的标签，事务标签等
+			// handler.parse
 			delegate.parseCustomElement(root);
 		}
 	}
@@ -359,7 +363,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	protected void processAliasRegistration(Element ele) {
 		// alias - name 属性
 		String name = ele.getAttribute(NAME_ATTRIBUTE);
-		// alias - 别名是啥
+		// alias - 别名
 		String alias = ele.getAttribute(ALIAS_ATTRIBUTE);
 		boolean valid = true;
 		if (!StringUtils.hasText(name)) {
@@ -373,6 +377,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		// 校验成功
 		if (valid) {
 			try {
+				// 注意这里是 DefaultBeanDefinitionDocumentReader 传递过来的
 				// 通过一路传递的 readerContext 找到他持有的 registry ，进行一个别名的注册
 				getReaderContext().getRegistry().registerAlias(name, alias);
 			}
@@ -390,10 +395,12 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * and registering it with the registry.
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
-		// 通过 delegate 生成一个 BeanDefinitionHolder
+		// 通过 delegate 将 ele bean 标签解析为一个 BeanDefinitionHolder
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
+		// 解析成功
 		if (bdHolder != null) {
-			// 修饰 BeanDefinitionHolder
+			// 修饰 BeanDefinitionHolder，其实是检测是否嵌套了自定义的 标签进行，如果有，则调用自定义标签的 decorate 修饰方法
+			// (不同于 mybatis:scan 这个，这调用的是 parse 方法)
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.

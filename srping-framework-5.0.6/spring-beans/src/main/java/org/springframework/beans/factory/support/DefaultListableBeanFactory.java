@@ -130,8 +130,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 	}
 
+	/**
+	 * https://blog.csdn.net/iycynna_123/article/details/52858224
+	 * 各个属性参考
+	 */
+
 
 	/** Map from serialized id to factory instance */
+	/**
+	 * 序列化 ID 映射到工厂实例的 Map
+	 */
 	private static final Map<String, Reference<DefaultListableBeanFactory>> serializableFactories =
 			new ConcurrentHashMap<>(8);
 
@@ -140,41 +148,82 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private String serializationId;
 
 	/** Whether to allow re-registration of a different definition with the same name */
+	/**
+	 * 是否允许 bean 被覆盖
+	 */
 	private boolean allowBeanDefinitionOverriding = true;
 
 	/** Whether to allow eager class loading even for lazy-init beans */
+	/**
+	 * 是否允许 bean 甚至是延迟加载的 bean 马上加载。默认为 true
+	 */
 	private boolean allowEagerClassLoading = true;
 
 	/** Optional OrderComparator for dependency Lists and arrays */
+	/**
+	 * 可选的用于依赖集合和数组的比较器
+	 */
 	@Nullable
 	private Comparator<Object> dependencyComparator;
 
 	/** Resolver to use for checking if a bean definition is an autowire candidate */
+	/**
+	 * 用来检查一个类定义是否有自动注入请求的解析器
+	 */
 	private AutowireCandidateResolver autowireCandidateResolver = new SimpleAutowireCandidateResolver();
 
 	/** Map from dependency type to corresponding autowired value */
+	/**
+	 * 依赖类型到对应的注入值的映射
+	 */
 	private final Map<Class<?>, Object> resolvableDependencies = new ConcurrentHashMap<>(16);
 
 	/** Map of bean definition objects, keyed by bean name */
+	/**
+	 * beanName -> BeanDefinition 定义
+	 */
 	private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
 	/** Map of singleton and non-singleton bean names, keyed by dependency type */
+	/**
+	 * 依赖类型到对应 bean 名字的映射，包括单例和非单例
+	 */
 	private final Map<Class<?>, String[]> allBeanNamesByType = new ConcurrentHashMap<>(64);
 
 	/** Map of singleton-only bean names, keyed by dependency type */
+	/**
+	 * 依赖类型到对应bean名字的映射，仅包含单例
+	 */
 	private final Map<Class<?>, String[]> singletonBeanNamesByType = new ConcurrentHashMap<>(64);
 
 	/** List of bean definition names, in registration order */
+	/**
+	 * 所有bean定义的名字的集合，按注册次序
+	 */
 	private volatile List<String> beanDefinitionNames = new ArrayList<>(256);
 
 	/** List of names of manually registered singletons, in registration order */
+	/**
+	 * manual 手动
+	 * 手工注册的单例 bean 定义的名字的集合，按注册次序
+	 *
+	 * 手工注册的 beanName 从哪里来的？？？
+	 *
+	 */
 	private volatile Set<String> manualSingletonNames = new LinkedHashSet<>(16);
 
 	/** Cached array of bean definition names in case of frozen configuration */
+	/**
+	 * 缓存 bean 定义名字的数组
+	 */
 	@Nullable
 	private volatile String[] frozenBeanDefinitionNames;
 
 	/** Whether bean definition metadata may be cached for all beans */
+	/**
+	 * 是否允许bean定义的元数据被缓存，以用于所有的bean
+	 *  meta 标签
+	 */
 	private volatile boolean configurationFrozen = false;
 
 
@@ -794,6 +843,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		Assert.hasText(beanName, "Bean name must not be empty");
 		Assert.notNull(beanDefinition, "BeanDefinition must not be null");
 
+		// 如果是 AbstractBeanDefinition ，先进行校验。调用 validate 方法
+		// 这是注册前的最后一次校验了，主要是对属性 methodOverrides 进行校验。
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
 				((AbstractBeanDefinition) beanDefinition).validate();
@@ -804,15 +855,23 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 		}
 
+		// 当前 beanName 是否已经本缓存到 beanDefinitionMap 中
 		BeanDefinition oldBeanDefinition;
 
 		oldBeanDefinition = this.beanDefinitionMap.get(beanName);
+		// 如果存在，则进行一系列的判断，抛出异常
 		if (oldBeanDefinition != null) {
+			// 如果存在，并且不能够被覆盖
 			if (!isAllowBeanDefinitionOverriding()) {
 				throw new BeanDefinitionStoreException(beanDefinition.getResourceDescription(), beanName,
 						"Cannot register bean definition [" + beanDefinition + "] for bean '" + beanName +
 						"': There is already [" + oldBeanDefinition + "] bound.");
 			}
+
+			// 下面的逻辑表示可以被覆盖
+
+			// 覆盖 beanDefinition 大于 被覆盖的 beanDefinition 的 ROLE ，打印 info 日志
+			// role 用于标识 bean 的分类，用处暂时不清楚
 			else if (oldBeanDefinition.getRole() < beanDefinition.getRole()) {
 				// e.g. was ROLE_APPLICATION, now overriding with ROLE_SUPPORT or ROLE_INFRASTRUCTURE
 				if (this.logger.isWarnEnabled()) {
@@ -821,6 +880,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							oldBeanDefinition + "] with [" + beanDefinition + "]");
 				}
 			}
+			// 新的bean 与被覆盖的 bean 是否相同
 			else if (!beanDefinition.equals(oldBeanDefinition)) {
 				if (this.logger.isInfoEnabled()) {
 					this.logger.info("Overriding bean definition for bean '" + beanName +
@@ -828,6 +888,8 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+
+			// 其他的情况
 			else {
 				if (this.logger.isDebugEnabled()) {
 					this.logger.debug("Overriding bean definition for bean '" + beanName +
@@ -835,17 +897,30 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 进行覆盖
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
 		else {
+
+			// 是否已经有 bean 开始初始化了
 			if (hasBeanCreationStarted()) {
+
+				// 检测创建 Bean 阶段是否已经开启，如果开启了则需要对 beanDefinitionMap 进行并发控制
+				// 即 bean 是否已经进行初始装载 xxx 等
+
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				// 进行并发控制
 				synchronized (this.beanDefinitionMap) {
+					// 将 beanDefinition 定义进行缓存
 					this.beanDefinitionMap.put(beanName, beanDefinition);
+					// 更新 beanDefinitionNames ，更新方式为 新建一个 List，并且将 beanDefinitionNames 全部添加到新的额  list
+					// 然后将新注册的 beanName 加入，最后将成员变量的引用指向 updatedDefinitions
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
 					updatedDefinitions.addAll(this.beanDefinitionNames);
 					updatedDefinitions.add(beanName);
 					this.beanDefinitionNames = updatedDefinitions;
+
+					// 从 manualSingletonNames 移除 beanName，移除手工注册的
 					if (this.manualSingletonNames.contains(beanName)) {
 						Set<String> updatedSingletons = new LinkedHashSet<>(this.manualSingletonNames);
 						updatedSingletons.remove(beanName);
@@ -853,16 +928,34 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					}
 				}
 			}
+			// 还没有 bean 被初始化
 			else {
 				// Still in startup registration phase
+				// 没有并发问题
 				this.beanDefinitionMap.put(beanName, beanDefinition);
 				this.beanDefinitionNames.add(beanName);
+				// 这里也要移除手工注册的， 那么手工注册的从哪里来的
 				this.manualSingletonNames.remove(beanName);
 			}
+			// 情况缓存 bean 定义的 （为啥要清空，有什么作用？？？）
 			this.frozenBeanDefinitionNames = null;
 		}
 
+
+		// frozenBeanDefinitionNames 和 manualSingletonNames 的作用？
+		// 依赖注入时的二级缓存，三级缓存吗？？？
+
+
+		// 旧的 beanName 存在 || singletonObjects 已经存在 beanName
+
+		// 1、第一种情况，oldBeanDefinition 走到这一步，说明 oldBeanDefinition 。beanDefinitionMap 已经被新的 beanDefinition 覆盖掉了
+		// 2、singletonObjects 存在 beanName
+
+		// 这里 为什么要释放调???
+		// 若缓存中存在该 beanName 或者单例 bean 集合中存在该 beanName ，则调用 #resetBeanDefinition(String beanName) 方法，重置 BeanDefinition 缓存
+		// 这里一般不给 覆盖的，只要运行覆盖，其实就需要重置 创建过程中的缓存、依赖注入缓存等
 		if (oldBeanDefinition != null || containsSingleton(beanName)) {
+			// 需要释放调，如果缓存
 			resetBeanDefinition(beanName);
 		}
 	}
@@ -903,14 +996,17 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	 */
 	protected void resetBeanDefinition(String beanName) {
 		// Remove the merged bean definition for the given bean, if already created.
+		// 如果 bean 已经 创建，删除掉 合并 bean 定义的信息
 		clearMergedBeanDefinition(beanName);
 
 		// Remove corresponding bean from singleton cache, if any. Shouldn't usually
 		// be necessary, rather just meant for overriding a context's default beans
 		// (e.g. the default StaticMessageSource in a StaticApplicationContext).
+		// 这里会清除所有的 bean 定义
 		destroySingleton(beanName);
 
 		// Reset all bean definitions that have the given bean as parent (recursively).
+		// 情况删除其他的 bean 定义，还是调用本 resetBeanDefinition
 		for (String bdName : this.beanDefinitionNames) {
 			if (!beanName.equals(bdName)) {
 				BeanDefinition bd = this.beanDefinitionMap.get(bdName);

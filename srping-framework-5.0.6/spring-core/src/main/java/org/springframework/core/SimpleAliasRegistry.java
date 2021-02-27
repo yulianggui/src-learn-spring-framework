@@ -41,6 +41,11 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	private final Map<String, String> aliasMap = new ConcurrentHashMap<>(16);
 
 
+	/**
+	 * 别名注册
+	 * @param name the canonical name
+	 * @param alias the alias to be registered
+	 */
 	@Override
 	public void registerAlias(String name, String alias) {
 		Assert.hasText(name, "'name' must not be empty");
@@ -178,6 +183,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
+	 *
+	 * 如果 name、alias 分别为 1 和 3 ，则构成 （1,3） 的映射。加入，此时集合中存在（A,1）、（3,A） 的映射，
+	 * 意味着出现循环指向的情况，则抛出 IllegalStateException 异常。
+	 *
 	 * Check whether the given name points back to the given alias as an alias
 	 * in the other direction already, catching a circular reference upfront
 	 * and throwing a corresponding IllegalStateException.

@@ -1047,6 +1047,10 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @throws BeanDefinitionValidationException in case of validation failure
 	 */
 	public void validate() throws BeanDefinitionValidationException {
+		// 没有工厂方法
+		// 其实MethodOverrides的作用就是在spring配置中存在lookup-mehtod和rreplace-method的，
+		// 而这两个配置在加载xml的时候就会统一存放在BeanDefinition中的methodOverrides属性里
+		// 工厂方法的名称需要配置
 		if (hasMethodOverrides() && getFactoryMethodName() != null) {
 			throw new BeanDefinitionValidationException(
 					"Cannot combine static factory method with method overrides: " +

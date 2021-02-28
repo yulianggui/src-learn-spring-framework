@@ -372,23 +372,32 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
-				// 获取 mbd 的依赖对象 bean。 这里还不是 DI，是 depends-on 属性（必须在 之后再初始化当前 bean）
+				// 获取 mbd 的依赖对象 bean。 ？？？
 				String[] dependsOn = mbd.getDependsOn();
 				// 依赖的 bean 存在
 				if (dependsOn != null) {
 					// 存在依赖，循环递归实例化依赖的 bean
 
+					// 获取depends-on的属性值，如果depends-on的值存在 则添加进入dependentBeanMap缓存中
+					// 这里的是 depends-on 的属性，不是依赖注入
 					for (String dep : dependsOn) {
-
-						//
+						// dep 是否依赖了 beanName ，这里的实现逻辑会比较绕
 						if (isDependent(beanName, dep)) {
+							// beanName 和 dep 直接存在循环依赖。
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
 						}
-						// 注册 依赖的 bean
+						// 注册 依赖的 bean。 beanName 依赖 dep
+						// 注意这里 dep 是 key，beanName 是 value
+						// 即 dep 被 beanName 依赖
 						registerDependentBean(dep, beanName);
 						try {
 							// 初始化，getBean -- 递归初始化
+							// 初始化 dep 依赖的，同样，这个 过程可能会继续来到 if (dependsOn != null) { } 这个逻辑，此时如果存在 depends-on 与 beanA 直接的
+							// 循环依赖，就可以提前发现了
+							// beanA -- depends-on(b、c) 、b -- depends-on(A)
+							// beanA -- depends-on(b、d)、 b -- depends-on(c)、b -- depends-on(a)
+							// 都不行的
 							getBean(dep);
 						}
 						catch (NoSuchBeanDefinitionException ex) {
@@ -400,6 +409,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance.
 				if (mbd.isSingleton()) {
+					// new ObjectFactory 来创建 单例 bean
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							return createBean(beanName, mbd, args);
@@ -1671,13 +1681,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param beanName the name of the bean
 	 */
 	protected void markBeanAsCreated(String beanName) {
-		//
+		// 没有创建
 		if (!this.alreadyCreated.contains(beanName)) {
+			// 加上全局锁
 			synchronized (this.mergedBeanDefinitions) {
+				// 没有创建 -- DCL 双重核查
 				if (!this.alreadyCreated.contains(beanName)) {
 					// Let the bean definition get re-merged now that we're actually creating
 					// the bean... just in case some of its metadata changed in the meantime.
+					// 删掉 合并的 beanDefinition
 					clearMergedBeanDefinition(beanName);
+					// 添加 beanName
 					this.alreadyCreated.add(beanName);
 				}
 			}

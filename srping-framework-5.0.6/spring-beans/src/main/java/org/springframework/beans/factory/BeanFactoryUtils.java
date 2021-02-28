@@ -53,6 +53,7 @@ public abstract class BeanFactoryUtils {
 
 
 	/**
+	 * 判断是否是获取 一个 FactoryBean
 	 * Return whether the given name is a factory dereference
 	 * (beginning with the factory dereference prefix).
 	 * @param name the name of the bean
@@ -64,6 +65,9 @@ public abstract class BeanFactoryUtils {
 	}
 
 	/**
+	 * 去除 FactoryBean 的修饰符 &
+	 * 如果 name 以 “&” 为前缀，那么会去掉该 "&"
+	 * 例如，name = "&studentService" ，则会是 name = "studentService"。
 	 * Return the actual bean name, stripping out the factory dereference
 	 * prefix (if any, also stripping repeated factory prefixes if found).
 	 * @param name the name of the bean

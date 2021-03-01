@@ -469,15 +469,28 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
-		// which cannot be stored in the shared merged bean definition.
+		// which cannot be stored in the shared merged bean definition.X
+		// 确保在此时的节点，beanClass 属性被正确解析了
+		// 如果获取的class 属性不为null，则克隆该 BeanDefinition
+		// 主要是因为该动态解析的 class 无法保存到到共享的 BeanDefinition
+
+		// 锁定 class，尝试 从 beanClass 、beanClassName 中解析获取 Class 对象
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
+		// 1、resolvedClass != null
+		// 2、mbd 没有设置 beanClass
+		// 3、mbd 设置了 beanClassName
+
+		// 其实这一步主要是确保 beanClass 能正确解析
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
 			mbdToUse = new RootBeanDefinition(mbd);
+			// 重新再包装一层 RootBeanDefinition
 			mbdToUse.setBeanClass(resolvedClass);
 		}
 
 		// Prepare method overrides.
 		try {
+			// 验证和准备覆盖方法， 如果再 xml 中进行了配置，要验证是否 在对应的 beanClass 方法中存在相应的 方法，如果没有，则抛出异常
+			// method-replace 、lookup-method
 			mbdToUse.prepareMethodOverrides();
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -487,6 +500,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			// bean 创建之前的操作 -- 注意这里一个切入点，如果此时返回的 bean 不为 null，则不会进行后续的操作了（doCreateBean(beanName, mbdToUse, args)）
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				return bean;
@@ -1032,6 +1046,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Nullable
 	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
 		Object bean = null;
+		// bean 方法
+		// bean 创建初始化之前，还没有实例化。
+		// 此时 mdb 有一个标志位 beforeInstantiationResolved
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {

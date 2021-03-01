@@ -372,7 +372,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
-				// 获取 mbd 的依赖对象 bean。 ？？？
+				// 获取 mbd 的依赖对象 bean。
 				String[] dependsOn = mbd.getDependsOn();
 				// 依赖的 bean 存在
 				if (dependsOn != null) {
@@ -408,10 +408,20 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				// Create bean instance.
+				// 创建单例 bean
 				if (mbd.isSingleton()) {
 					// new ObjectFactory 来创建 单例 bean
+					// 在 getSingleton 方法实现 单例 bean 的创建
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
+							/**
+							 * beanName 名字
+							 * 合并了 父类属性的 bean
+							 * 参数
+							 *
+							 * 默认实现
+							 * {@link AbstractAutowireCapableBeanFactory#createBean(String, RootBeanDefinition, Object[])}
+							 */
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
@@ -422,6 +432,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							throw ex;
 						}
 					});
+					// 返回的 bean 是原始的 bean，可能需要做一些额外的处理
+					// 这个方法主要是验证以下我们得到的 bean 的正确性，其实就是检测当前 bean 是否是 FactoryBean 类型的 bean
+					// 如果是，那么需要调用该 bean 对应的 FactoryBean 实例的 #getObject() 方法，作为返回值
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
 
@@ -1500,9 +1513,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected Class<?> resolveBeanClass(final RootBeanDefinition mbd, String beanName, final Class<?>... typesToMatch)
 			throws CannotLoadBeanClassException {
 		try {
+
+			// 如果 mbd 设置了 beanClass ，则直接返回
 			if (mbd.hasBeanClass()) {
 				return mbd.getBeanClass();
 			}
+
+			// 权限验证，调用 doResolveBeanClass 方法，查找匹配获选 class
 			if (System.getSecurityManager() != null) {
 				return AccessController.doPrivileged((PrivilegedExceptionAction<Class<?>>) () ->
 					doResolveBeanClass(mbd, typesToMatch), getAccessControlContext());
@@ -1543,6 +1560,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 		}
+		// 根据 className 匹配
 		String className = mbd.getBeanClassName();
 		if (className != null) {
 			Object evaluated = evaluateBeanDefinitionString(className, mbd);
@@ -1564,6 +1582,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				return ClassUtils.forName(className, classLoaderToUse);
 			}
 		}
+		// 最后调用 dbd 的 resolveBeanClass 方法
 		return mbd.resolveBeanClass(beanClassLoader);
 	}
 

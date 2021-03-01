@@ -155,6 +155,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	private final NamedThreadLocal<String> currentlyCreatedBean = new NamedThreadLocal<>("Currently created bean");
 
 	/** Cache of unfinished FactoryBean instances: FactoryBean name --> BeanWrapper */
+	/**
+	 * beanName -- beanWrapper
+	 */
 	private final Map<String, BeanWrapper> factoryBeanInstanceCache = new ConcurrentHashMap<>(16);
 
 	/** Cache of filtered PropertyDescriptors: bean Class -> PropertyDescriptor array */
@@ -503,6 +506,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// bean 创建之前的操作 -- 注意这里一个切入点，如果此时返回的 bean 不为 null，则不会进行后续的操作了（doCreateBean(beanName, mbdToUse, args)）
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
+				// 此处如果不为 null ，则直接返回了
+				// 据说 AOP 就是在这里进行替换的
 				return bean;
 			}
 		}
@@ -547,16 +552,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throws BeanCreationException {
 
 		// Instantiate the bean.
+		// BeanWrapper 是对 Bean 的包装，其接口中所定义的功能很简单包括设置获取被包装的对象，获取被包装 bean 的属性描述器
 		BeanWrapper instanceWrapper = null;
 		if (mbd.isSingleton()) {
+			// 如果是单例，清除缓存
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		if (instanceWrapper == null) {
+			// 主要是将 BeanDefinition 转换为 BeanWrapper
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
+		// 获取包装的 对象实例
 		final Object bean = instanceWrapper.getWrappedInstance();
+		// 获取包装类的 beanType 实例类型
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
+			//
 			mbd.resolvedTargetType = beanType;
 		}
 
@@ -1048,18 +1059,25 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Object bean = null;
 		// bean 方法
 		// bean 创建初始化之前，还没有实例化。
-		// 此时 mdb 有一个标志位 beforeInstantiationResolved
+		// 此时 mdb 有一个标志位 beforeInstantiationResolved = 实例化后处理器已启动
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
+
+			// hasInstantiationAwareBeanPostProcessors 为 true
+			// 不是 spring 容器内部定义的 && 开启了 InstantiationAwareBeanPostProcessors 处理器的功能
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+				// 找到 目标 targetType 。 为什么是目标 targetType？？？。
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
+					// 前置处理器。 bean 创建之前
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
+						// 如果 不为空，则执行后置处理器的
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
 			}
+			// 其实是标志位， applyBeanPostProcessorsAfterInitialization 是否应用了
 			mbd.beforeInstantiationResolved = (bean != null);
 		}
 		return bean;
@@ -1104,18 +1122,24 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object[] args) {
 		// Make sure bean class is actually resolved at this point.
+		// 解析到 beanClass
 		Class<?> beanClass = resolveBeanClass(mbd, beanName);
 
+		// 类不是 public，是否允许访问非公共构造函数和方法
+		// beanClass 不为 null ，并且 不是 public 类，且不允许访问非公共构造函数和方法
 		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
 
+		// 如果存在 Supplier 回调，则使用给定的回调方法初始化策略
+		// Supplier 又是啥？？？
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
+		// 存在 factoryMethodName ，factory-method 来创建，支持静态工厂和实例工厂
 		if (mbd.getFactoryMethodName() != null)  {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}

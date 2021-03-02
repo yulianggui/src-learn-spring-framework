@@ -1262,7 +1262,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param bw the BeanWrapper to initialize
 	 */
 	protected void initBeanWrapper(BeanWrapper bw) {
+		// 设置一个属性转换器；优先于 PropertyEditors
 		bw.setConversionService(getConversionService());
+		// 注册客户的 属性转换器
 		registerCustomEditors(bw);
 	}
 
@@ -1278,11 +1280,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		PropertyEditorRegistrySupport registrySupport =
 				(registry instanceof PropertyEditorRegistrySupport ? (PropertyEditorRegistrySupport) registry : null);
 		if (registrySupport != null) {
+			// 设置标志位，激活 配置值编辑
 			registrySupport.useConfigValueEditors();
 		}
+		// 属性编辑注册里边有进行了配置
 		if (!this.propertyEditorRegistrars.isEmpty()) {
 			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) {
 				try {
+					// 将 registrar 添加到 registry 中
 					registrar.registerCustomEditors(registry);
 				}
 				catch (BeanCreationException ex) {
@@ -1304,6 +1309,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 		}
+		// 客户添加的
 		if (!this.customEditors.isEmpty()) {
 			this.customEditors.forEach((requiredType, editorClass) ->
 					registry.registerCustomEditor(requiredType, BeanUtils.instantiateClass(editorClass)));

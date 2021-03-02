@@ -151,6 +151,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	/**
 	 * The name of the currently created bean, for implicit dependency registration
 	 * on getBean etc invocations triggered from a user-specified Supplier callback.
+	 *
+	 *	当前创建的bean的名称，用于从用户指定的Supplier回调触发的对getBean等调用的隐式依赖项注册
 	 */
 	private final NamedThreadLocal<String> currentlyCreatedBean = new NamedThreadLocal<>("Currently created bean");
 
@@ -559,19 +561,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// BeanWrapper 是对 Bean 的包装，其接口中所定义的功能很简单包括设置获取被包装的对象，获取被包装 bean 的属性描述器
 		BeanWrapper instanceWrapper = null;
 		if (mbd.isSingleton()) {
-			// 如果是单例，清除缓存
+			// 如果是单例，清除缓存。 beanWrapper
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
 		if (instanceWrapper == null) {
-			// 主要是将 BeanDefinition 转换为 BeanWrapper
+			// 主要是将 BeanDefinition 转换为 BeanWrapper。重点
+			// 这里是相当之复杂的一个过程。
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		// 获取包装的 对象实例
 		final Object bean = instanceWrapper.getWrappedInstance();
-		// 获取包装类的 beanType 实例类型
+		// wrappedClass 即为 原始 beanName 对应的 class
 		Class<?> beanType = instanceWrapper.getWrappedClass();
 		if (beanType != NullBean.class) {
-			//
+			// 如果不是 NullBean ，说明解析成功了
+			// mbd.resolvedTargetType 即为目标类型
 			mbd.resolvedTargetType = beanType;
 		}
 
@@ -1144,18 +1148,30 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// 如果存在 Supplier 回调，则使用给定的回调方法初始化策略
-		// Supplier 又是啥？？？
+		// Supplier 提供了 get 方法，其实就是用来创建 bean ，等同于 静态工厂方法
+		// java8函数式接口编程，替换静态工厂方法，工厂方法
+
+		// 主动在 mdb 中加入
+		/*
+			demo ，那么就会优先使用这个 bean 的方式创建 bean
+			mbd.setInstanceSupplier(() -> {
+				return "";
+			});
+
+		*/
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
 		// 存在 factoryMethodName ，factory-method 来创建，支持静态工厂和实例工厂
+		// 暂时不深究了
 		if (mbd.getFactoryMethodName() != null)  {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
 
 		// Shortcut when re-creating the same bean...
+		// 解析是否可以使用构造函数进行构造注入。此种是 args 没有传入的情况
 		boolean resolved = false;
 		boolean autowireNecessary = false;
 		if (args == null) {
@@ -1166,15 +1182,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				}
 			}
 		}
+		// 构造函数进行构造注入
 		if (resolved) {
+			// autowire 自动注入，调用构造函数自动注入
 			if (autowireNecessary) {
 				return autowireConstructor(beanName, mbd, null, null);
 			}
 			else {
+				// 使用默认构造函数构造
 				return instantiateBean(beanName, mbd);
 			}
 		}
 
+		// 走到这里，说明传入了 args，此时需要选择合适的构造函数进行构造注入
+
+		// 需要确定构造函数
 		// Need to determine the constructor...
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		if (ctors != null ||
@@ -1184,6 +1206,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// No special handling: simply use no-arg constructor.
+		// 找不到合适的构造参数对应的构造函数，只能使用默认的构造函数了
 		return instantiateBean(beanName, mbd);
 	}
 
@@ -1196,21 +1219,34 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #getObjectForBeanInstance
 	 */
 	protected BeanWrapper obtainFromSupplier(Supplier<?> instanceSupplier, String beanName) {
+
+		// 这里为什么要做这样的设计？ 而且是 5.0 才有的
+
+		// 这里的 outerBean 是什么意思？
+
+
+		// 当前线程之前创建的 beanName
 		String outerBean = this.currentlyCreatedBean.get();
+		// 设置为 当前要创建的 beanName
 		this.currentlyCreatedBean.set(beanName);
 		Object instance;
 		try {
+			// 调用 get 方法，得到当前要实例化的 bean -- instance
 			instance = instanceSupplier.get();
 		}
 		finally {
+			// outerBean 之前的存在，放回去
 			if (outerBean != null) {
 				this.currentlyCreatedBean.set(outerBean);
 			}
+			// 否则将当前 outerBean 删除掉
 			else {
 				this.currentlyCreatedBean.remove();
 			}
 		}
+		// 包装为 BeanWrapperImpl
 		BeanWrapper bw = new BeanWrapperImpl(instance);
+		// 初始化bean的包装
 		initBeanWrapper(bw);
 		return bw;
 	}
@@ -1277,6 +1313,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getAccessControlContext());
 			}
 			else {
+				// 通过 CGlib beanWrapper 生成策略生成 beanWrapper对象
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);
@@ -1303,6 +1340,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected BeanWrapper instantiateUsingFactoryMethod(
 			String beanName, RootBeanDefinition mbd, @Nullable Object[] explicitArgs) {
 
+		// ConstructorResolver 是构造方法或者工厂类初始化 bean 的委托类
+		// 初始化一个 beanWrapper
 		return new ConstructorResolver(this).instantiateUsingFactoryMethod(beanName, mbd, explicitArgs);
 	}
 

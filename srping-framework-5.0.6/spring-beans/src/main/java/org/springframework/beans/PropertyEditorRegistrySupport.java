@@ -117,6 +117,9 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	/**
 	 * Specify a Spring 3.0 ConversionService to use for converting
 	 * property values, as an alternative to JavaBeans PropertyEditors.
+	 *
+	 * 指定一个Spring 3.0 ConversionService 以用于转换属性值，以替代 JavaBeans PropertyEditors
+	 *
 	 */
 	public void setConversionService(@Nullable ConversionService conversionService) {
 		this.conversionService = conversionService;

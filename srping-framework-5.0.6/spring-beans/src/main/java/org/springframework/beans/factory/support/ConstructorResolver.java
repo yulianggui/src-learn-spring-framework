@@ -352,57 +352,87 @@ class ConstructorResolver {
 	public BeanWrapper instantiateUsingFactoryMethod(
 			final String beanName, final RootBeanDefinition mbd, @Nullable final Object[] explicitArgs) {
 
+		// 实例化一个 bw，初始化
 		BeanWrapperImpl bw = new BeanWrapperImpl();
 		this.beanFactory.initBeanWrapper(bw);
 
+		// 工厂  bean
 		Object factoryBean;
+		// 工厂 class
 		Class<?> factoryClass;
+		// 是否为静方法
 		boolean isStatic;
 
+		// 获取 工厂 beanName 名称
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
+			// 不为空，且工厂 beanName 不能是自己
 			if (factoryBeanName.equals(beanName)) {
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
+			// 获取工厂实例
+			// getBean
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
+			// 当前 mbd 为单例 && 当前 singletonObjects 中已经存在改 beanName ，则抛出一个异常
+			// ImplicitlyAppearedSingletonException , 隐式创建了beanName异常
+			// 说明调用 getBean 的过程获取 factoryBeanName 的时候，
+			// 当前的 beanName 已经被创建好了
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
 				throw new ImplicitlyAppearedSingletonException();
 			}
+			// 工厂 bean 的 class 类型
 			factoryClass = factoryBean.getClass();
+			// 根据工厂实例调用，可能调用的方法不是静态的
 			isStatic = false;
 		}
 		else {
 			// It's a static factory method on the bean class.
+			// 工厂名为空，则可能是本 beanClass 的静态方法
 			if (!mbd.hasBeanClass()) {
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"bean definition declares neither a bean class nor a factory-bean reference");
 			}
 			factoryBean = null;
+			// 因此 beanClass 为本利的 静态方法
 			factoryClass = mbd.getBeanClass();
 			isStatic = true;
 		}
 
+		// 工厂方法
 		Method factoryMethodToUse = null;
+		// 参数支持者
 		ArgumentsHolder argsHolderToUse = null;
+		// 参数
 		Object[] argsToUse = null;
 
+		// 如果传递了参数（构造方法参数）
 		if (explicitArgs != null) {
 			argsToUse = explicitArgs;
 		}
 		else {
+			// 否则，没有指定构造参数，则尝试从缓存中找 bean 标签中配置的
 			Object[] argsToResolve = null;
+			// 首先尝试从缓存中获取，此处的缓存为 mbd 对象
 			synchronized (mbd.constructorArgumentLock) {
 				factoryMethodToUse = (Method) mbd.resolvedConstructorOrFactoryMethod;
+				// 缓存中找到了 并且 bean 标签配置了构造参信息
 				if (factoryMethodToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached factory method...
+					// 获取缓存中的构造参数
 					argsToUse = mbd.resolvedConstructorArguments;
 					if (argsToUse == null) {
+						// 如果 resolvedConstructorArguments 还是没有，则
+						// 获取缓存中的构造函数参数的包可见字段
 						argsToResolve = mbd.preparedConstructorArguments;
 					}
 				}
 			}
+			// 缓存中存在,则解析存储在 BeanDefinition 中的参数
+			// 如给定方法的构造函数 A(int ,int )，则通过此方法后就会把配置文件中的("1","1")转换为 (1,1)
+			// 缓存中的值可能是原始值也有可能是最终值
 			if (argsToResolve != null) {
+				// 解析到构造参数中
 				argsToUse = resolvePreparedArguments(beanName, mbd, bw, factoryMethodToUse, argsToResolve);
 			}
 		}

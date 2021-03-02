@@ -1103,6 +1103,15 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 			// 那就是当 count == 1 时，设置 overloaded = false ，这样表示该方法没有重载。这样，在后续调用的时候，便可以直接找到方法而不需要进行方法参数的校验
 			mo.setOverloaded(false);
 		}
+
+		/**
+		 * 如果存在 lookup-method、replace-method 两个参数，spring 会动态地位当前的 bean 生成代理并使用对应的拦截器为 bean 做增强处理
+		 * 这里先做标志。是否只有一个 方法。如果一个类中存在若干个重载方法，那么在函数调用增强的时候还需要根据参数类型进行匹配，来最终确定当前
+		 * 调用的到底是哪个函数。
+		 * Overloaded 就是做这个样一个优化标识的，只有一个说明找到方法调用的时候，不需要进行参数类型匹配，达到减少开销的作用
+		 */
+
+
 	}
 
 

@@ -493,7 +493,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Prepare method overrides.
 		try {
 			// 验证和准备覆盖方法， 如果再 xml 中进行了配置，要验证是否 在对应的 beanClass 方法中存在相应的 方法，如果没有，则抛出异常
-			// method-replace 、lookup-method
+			// method-replace 、lookup-method（单例bean 引入原型 bean ,可以使用）
+
+			// 1、对方法存在行的验证
+			// 2、优化重载 标识
+
 			mbdToUse.prepareMethodOverrides();
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1058,7 +1062,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
 		Object bean = null;
 		// bean 方法
-		// bean 创建初始化之前，还没有实例化。
+		// bean 创建初始化之前，还没有实例化。（即还没有被解析）
 		// 此时 mdb 有一个标志位 beforeInstantiationResolved = 实例化后处理器已启动
 		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
 			// Make sure bean class is actually resolved at this point.
@@ -1070,9 +1074,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
 					// 前置处理器。 bean 创建之前
+					// InstantiationAwareBeanPostProcessor 接口是BeanPostProcessor的子接口
+					// 通过接口字面意思翻译该接口的作用是感知Bean实例话的处理器。实际上该接口的作用也是确实如此
+
+					// 这里仅做 InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation(Class<?> beanClass, String beanName) 类型处理
+
+					// 这里在 bean 实例化之前（将 beanDefinition 转换为 BeanWrapper 之前），给子类一个修改 BeanDefinition 的机会
+					// 可能是一个经过处理的 代理类，可能是通过 cglib 生成的，可能是通过其它技术生成的
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
-						// 如果 不为空，则执行后置处理器的
+						// 如果 不为空，则执行后置处理器的; BeanPostProcessor
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}

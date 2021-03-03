@@ -459,6 +459,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//---------------------------------------------------------------------
 
 	/**
+	 *
+	 * https://blog.csdn.net/qq_28605513/article/details/85536632
+	 * 循环依赖的解决方案
+	 *
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
@@ -1176,15 +1180,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		boolean autowireNecessary = false;
 		if (args == null) {
 			synchronized (mbd.constructorArgumentLock) {
+				// 这里是一种缓存机制 ，如果 args 外部参数没传，则尝试解析 bean 中配置的 工厂方法或者构造参数
+				// 比如原型模式，到这里就有可能可以使用到缓存。 （确定工厂方法 || 构造参数的过程是比较耗性能的，做了优化）
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
 					resolved = true;
 					autowireNecessary = mbd.constructorArgumentsResolved;
 				}
 			}
 		}
-		// 构造函数进行构造注入
+		// 如果已经解析到了相应的 构造函数进行构造注入
 		if (resolved) {
 			// autowire 自动注入，调用构造函数自动注入
+
+			// autowireNecessary 有参还是无参
 			if (autowireNecessary) {
 				return autowireConstructor(beanName, mbd, null, null);
 			}
@@ -1194,9 +1202,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
-		// 走到这里，说明传入了 args，此时需要选择合适的构造函数进行构造注入
+		// 走到这里，说明传入了 args 或者 缓存中没有 解析过调用的 args == null 时需要使用构造函数（或者工厂方法） resolvedConstructorOrFactoryMethod
+		// 此时需要选择合适的构造函数进行构造注入
 
-		// 需要确定构造函数
+		// 1、根据 args 需要确定构造函数  2、args == null ，根据 bean 标签配置的查找
 		// Need to determine the constructor...
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		if (ctors != null ||

@@ -573,7 +573,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// 这里是相当之复杂的一个过程。
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
-		// 获取包装的 对象实例
+		// 获取 创建的 bean 对象实例(wrapper 只是包装)
 		final Object bean = instanceWrapper.getWrappedInstance();
 		// wrappedClass 即为 原始 beanName 对应的 class
 		Class<?> beanType = instanceWrapper.getWrappedClass();
@@ -606,6 +606,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.debug("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 运行暴露早期的 单例 bean。 第二个参数 为 ObjectFactory 工厂，用来获取 bean 实例
+			// 这里追关键的是 ObjectFactory 对 getObject 的实现
+
+
+			// 这里解决循环依赖的关键是， ObjectFactory 中返回的 bean 是未初始化完毕的，单由于 该出返回的 当前 bean 与后续需要进行
+			// 属性注入的 bean 是同一个，引用的地址是一样的，达到了单例 bean 注入的目的
+
+			// A --> B B -> A
+			// getBean(A) ，走到 addSingletonFactory ，将 ObjectFactory-A 的对象进行缓存
+			// 设置A 的属性 B，b 需要设置属性 A，则 getBean(A)
+			// 此时缓存中有 ObjectFactory-A，得到返回地址，赋值给 A 属性，此时 BeanB 解析完毕
+			// beanA 的b 属性设置完毕
+			// 继续进行进行其他属性的解析
+
+			// 当所有的 springBean 中的所有的bena 加载完毕，说明所有的属性也解析，注入完毕
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
@@ -928,6 +943,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 *
+	 * 这段代码是在 ObjectFactory 工厂方法的 getObject 方法的实现
+	 * 		对 bean 再一次依赖引用，主要应用 SmartInstantiationAware BeanPost Processor
+	 * 	    AOP 在这里将 advice 动态进行织入 bean 中，若没有则直接返回 bean ，不做任何处理
+	 *
 	 * Obtain a reference for early access to the specified bean,
 	 * typically for the purpose of resolving a circular reference.
 	 * @param beanName the name of the bean (for error handling purposes)
@@ -1322,7 +1342,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getAccessControlContext());
 			}
 			else {
-				// 通过 CGlib beanWrapper 生成策略生成 beanWrapper对象
+				// 可能需要通过 CGlib beanWrapper 生成策略生成 beanWrapper对象，因为
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);

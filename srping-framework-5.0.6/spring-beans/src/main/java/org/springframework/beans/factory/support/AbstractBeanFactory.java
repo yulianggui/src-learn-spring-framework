@@ -236,7 +236,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param args arguments to use when creating a bean instance using explicit arguments
 	 * (only applied when creating a new instance as opposed to retrieving an existing one)
 	 * @param typeCheckOnly whether the instance is obtained for a type check,
-	 * not for actual use
+	 * not for actual use  是否为类型检查而获取实例，而不是实际使用
 	 * @return an instance of the bean
 	 * @throws BeansException if the bean could not be created
 	 */
@@ -324,8 +324,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 
 			// Check if bean definition exists in this factory.
-			// 获取 parentBeanFactory
-
+			// 获取 parentBeanFactory。这里 parentBeanFactory.getBean(nameToLookup, args); 可以看到
+			// 其实就是一个双亲委派模型，先从 parentBeanFactory 中找，并且顺着 parent 链找，如果没找到，就会在当前 的 beanFactory 环境中找
 			BeanFactory parentBeanFactory = getParentBeanFactory();
 
 			// 如果 parentBeanFactory 工厂进行了定义 ， 并且 当前的 beanFactory 中 没有 beanName 的 BeanDefinition 定义
@@ -339,7 +339,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					// 非 AbstractBeanFactory，并且 args 存在，则 调用 带 args 的 getBean
 				// 3、第三个分支
 					// 非 AbstractBeanFactory, 并且 args 为null，则调用 带 requiredType 的 getBean
-				// 获取原始 beanName
+				// 获取原始 beanName。 传入的 name 有可能是 user 或者是 user 的别名
 				String nameToLookup = originalBeanName(name);
 				if (parentBeanFactory instanceof AbstractBeanFactory) {
 					// AbstractBeanFactory 类型，直接调用 doGetBean 了
@@ -361,18 +361,23 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			// 如果不是仅仅做类型检查则是创建bean，这里需要记录。这里要干嘛？？？ alreadyCreated 变量的作用
 			// 默认为 false，即次出事需要调用的
 			// 暂时不懂为啥要有这一段逻辑？？？
+
+			// 是否为类型检查而获取实例，而不是实际使用。也就是说，想校验一下 bean 是否存在
 			if (!typeCheckOnly) {
+				// 标志 bean 被创建
 				markBeanAsCreated(beanName);
 			}
 
 			try {
-				// 获取 mbd 对象
+				// 获取 mbd 对象。根据 beanName 获取 BeanDefinition 定义的信息
 				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				// 检查给定的合并的 BeanDefinition。如果是一个 抽象类，则直接抛出异常
+				// 这里仅仅是核查当前 mbd 是否是一个抽象类，如果是，则抛出异常
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
 				// 获取 mbd 的依赖对象 bean。
+				// 获取 当前 bean 的依赖， depends-on 指定的依赖，并且这里会触发 getBean ，一个递归的初始化
 				String[] dependsOn = mbd.getDependsOn();
 				// 依赖的 bean 存在
 				if (dependsOn != null) {
@@ -381,7 +386,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					// 获取depends-on的属性值，如果depends-on的值存在 则添加进入dependentBeanMap缓存中
 					// 这里的是 depends-on 的属性，不是依赖注入
 					for (String dep : dependsOn) {
-						// dep 是否依赖了 beanName ，这里的实现逻辑会比较绕
+						// dep 是否依赖了 beanName ，这里的实现逻辑会比较绕。它会把间接依赖也找出来
+						// 即 当前beanName 的配置项 depends-on 中的 dep 直接或者间接的依赖了 当前 beanName，造成循环依赖
+						// 这里的循环依赖是没办法解决的
 						if (isDependent(beanName, dep)) {
 							// beanName 和 dep 直接存在循环依赖。
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
@@ -505,11 +512,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public boolean containsBean(String name) {
+		// 翻译 beanName；解刨 & ，翻译别名
 		String beanName = transformedBeanName(name);
 		if (containsSingleton(beanName) || containsBeanDefinition(beanName)) {
+			// 单例 bean 中存在，或者 beanDefinition 中存在
+
+			// bean 不为 &testA || 或者是一个 factoryBean
 			return (!BeanFactoryUtils.isFactoryDereference(name) || isFactoryBean(name));
 		}
 		// Not found -> check parent.
+		// 当前 BeanFactory 中没有找到，尝试去 父 parent 中查找
 		BeanFactory parentBeanFactory = getParentBeanFactory();
 		return (parentBeanFactory != null && parentBeanFactory.containsBean(originalBeanName(name)));
 	}
@@ -1706,17 +1718,21 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param beanName the name of the bean
 	 */
 	protected void markBeanAsCreated(String beanName) {
-		// 没有创建
+		// 没有创建。如果 beanName 还没有被创建
 		if (!this.alreadyCreated.contains(beanName)) {
-			// 加上全局锁
+			// 加上全局锁 -- mergedBeanDefinitions bean 合并，主要是 bean 标签中 parent 的属性，继承 parent 的属性
 			synchronized (this.mergedBeanDefinitions) {
 				// 没有创建 -- DCL 双重核查
 				if (!this.alreadyCreated.contains(beanName)) {
+
+					// 现在我们要重新合并bean定义。以防它的元数据在此期间发生变化。
+
 					// Let the bean definition get re-merged now that we're actually creating
 					// the bean... just in case some of its metadata changed in the meantime.
 					// 删掉 合并的 beanDefinition
+					// 删除掉 mergedBeanDefinition 的 定义
 					clearMergedBeanDefinition(beanName);
-					// 添加 beanName
+					// 添加 beanName。bean 正在被创建
 					this.alreadyCreated.add(beanName);
 				}
 			}

@@ -587,6 +587,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
+					// 应用 MergedBeanDefinitionPostProcessors
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -599,6 +600,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
+		// 当前的 正在创建的 bean 是否为单例、是否允许循环依赖、是否正在创建（还没创建完毕）
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -606,13 +608,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.debug("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 添加到 singletonFactories 、删除 earlySingletonObjects
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
+			// 属性填充
 			populateBean(beanName, mbd, instanceWrapper);
+			// 初始化对象：依次会进行扩展点 applyBeanPostProcessorsBeforeInitialization 、 invokeAwareMethods、applyBeanPostProcessorsAfterInitialization
+			// 注意，此时属性已经填充了
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
 		catch (Throwable ex) {
@@ -654,6 +660,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Register bean as disposable.
 		try {
+			// 注册销毁方法（如果有必要）
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -1181,7 +1188,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (args == null) {
 			synchronized (mbd.constructorArgumentLock) {
 				// 这里是一种缓存机制 ，如果 args 外部参数没传，则尝试解析 bean 中配置的 工厂方法或者构造参数
-				// 比如原型模式，到这里就有可能可以使用到缓存。 （确定工厂方法 || 构造参数的过程是比较耗性能的，做了优化）
+				// 比如原型模式，到这里就有可能可以使用到缓存。 （寻找确定 工厂方法 || 构造参数的过程是比较耗性能的，做了优化）
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
 					resolved = true;
 					autowireNecessary = mbd.constructorArgumentsResolved;
@@ -1230,9 +1237,6 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected BeanWrapper obtainFromSupplier(Supplier<?> instanceSupplier, String beanName) {
 
 		// 这里为什么要做这样的设计？ 而且是 5.0 才有的
-
-		// 这里的 outerBean 是什么意思？
-
 
 		// 当前线程之前创建的 beanName
 		String outerBean = this.currentlyCreatedBean.get();
@@ -1393,15 +1397,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		// 在设置属性之前给 InstantiationAwareBeanPostProcessors 最后一次改变 bean 的机会
 		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
 		boolean continueWithPropertyPopulation = true;
 
+		// isSynthetic 非 spring 内部标志的对象 && hasInstantiationAwareBeanPostProcessors 存在
+		/**
+		 * hasInstantiationAwareBeanPostProcessors
+		 * {@link AbstractBeanFactory#addBeanPostProcessor(org.springframework.beans.factory.config.BeanPostProcessor)}
+		 */
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+					// 是否继续
 					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
 						continueWithPropertyPopulation = false;
 						break;
@@ -1410,22 +1421,29 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		// 是否进行 属性填充
 		if (!continueWithPropertyPopulation) {
 			return;
 		}
 
+		// 得到 xml 中配置的属性
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
 
+		// 属性自动装配的方式： byName || byType 则会进入 if 逻辑
 		if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME ||
 				mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
+			// 组合模式
+			// MutablePropertyValues 允许对属性进行简单的操作，并提供构造函数以支持Map的深度复制和构造
 			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
 
 			// Add property values based on autowire by name if applicable.
+			// byName 装配（属性注入）
 			if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME) {
 				autowireByName(beanName, mbd, bw, newPvs);
 			}
 
 			// Add property values based on autowire by type if applicable.
+			// byType 装配（属性注入）
 			if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
 				autowireByType(beanName, mbd, bw, newPvs);
 			}
@@ -1474,11 +1492,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected void autowireByName(
 			String beanName, AbstractBeanDefinition mbd, BeanWrapper bw, MutablePropertyValues pvs) {
 
+		// 非简单的属性名称
+		// 非简单：类型为对象类型的属性，但是这里并不是将所有的对象类型都都会找到，比如 8 个原始类型，String 类型 ，Number类型、Date类型、URL类型、URI类型等都会被忽略
 		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
 		for (String propertyName : propertyNames) {
+			// 容器的 单例 bean 中是否存在 propertyNames ，或者 beanDefinition 中是否存在 bean 定义
 			if (containsBean(propertyName)) {
 				Object bean = getBean(propertyName);
+				// pvs 中添加 properyName
 				pvs.add(propertyName, bean);
+				// 属性依赖注入； 记录当前的 beanName 被 propertyName（bean） 依赖； 同时也记录了 propertyName（bean） 依赖的 beanName
+				// PS: 注意，这里是根据 beanName 名字命名的，所以 propertyName 即当做非简单属性的 beanName
 				registerDependentBean(propertyName, beanName);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Added autowiring by name from bean name '" + beanName +
@@ -1558,8 +1582,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected String[] unsatisfiedNonSimpleProperties(AbstractBeanDefinition mbd, BeanWrapper bw) {
 		Set<String> result = new TreeSet<>();
 		PropertyValues pvs = mbd.getPropertyValues();
+		// 获得属性描述信息
 		PropertyDescriptor[] pds = bw.getPropertyDescriptors();
 		for (PropertyDescriptor pd : pds) {
+			// setXXX 方法存在(有可写方法) && 依赖检测中没有被忽略 && pvs 对象中不包含 && 非基本类型、uri 等
 			if (pd.getWriteMethod() != null && !isExcludedFromDependencyCheck(pd) && !pvs.contains(pd.getName()) &&
 					!BeanUtils.isSimpleProperty(pd.getPropertyType())) {
 				result.add(pd.getName());

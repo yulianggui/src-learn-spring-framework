@@ -528,7 +528,6 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		// 全局锁
 		// dependentBeanMap ： key 对应的bean 都被 value 对应的 集合里边的每一个 bean 依赖了
 		synchronized (this.dependentBeanMap) {
-			// 如果 或者 set 集合
 			Set<String> dependentBeans =
 					this.dependentBeanMap.computeIfAbsent(canonicalName, k -> new LinkedHashSet<>(8));
 			// 如果 dependentBeanName 已经存在，说明添加过了，直接返回了
@@ -566,9 +565,6 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
-	 * 太绕了，暂时搞不明白
-	 *
-	 *
 	 * dependentBeanName 是否依赖 beanName
 	 *
 	 *  == dependentBeanMap.get(beanA)

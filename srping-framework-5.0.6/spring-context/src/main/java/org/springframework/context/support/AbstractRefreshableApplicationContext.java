@@ -143,7 +143,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			beanFactory.setSerializationId(getId());
 			// 设置Bean 是否可以通过注册来覆盖，以及是否允许bean 之前出现循环依赖
 			customizeBeanFactory(beanFactory);
-			// 加载解析 xml，形成 BeanDef
+			// 加载解析 xml，形成 BeanDefinition
 			loadBeanDefinitions(beanFactory);
 			// 回到 refresh 方法中来
 			synchronized (this.beanFactoryMonitor) {

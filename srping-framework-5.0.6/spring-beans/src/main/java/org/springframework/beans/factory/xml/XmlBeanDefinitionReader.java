@@ -336,6 +336,8 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
 
 	/**
+	 * 给 resource 添加 Encode 编码修饰
+	 * 		-- 装饰器模式
 	 * Load bean definitions from the specified XML file.
 	 * @param resource the resource descriptor for the XML file
 	 * @return the number of bean definitions found
@@ -450,7 +452,9 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 			Document doc = doLoadDocument(inputSource, resource);
 			// 这里的 resource 就是 EncodeResource 编码解析功能的流，那为啥要传入到 registerBeanDefinitions？
 			// 注册BeanDefinitions ,这里为什么还要传入 resource?
-			// 传递过去，其实只是为了划分职责，在 registerBeanDefinitions 中还会将 resource 封装为 Xml读取上下文，方便做一些读取异常、读取事件、额外扩展等
+			// 后续要用到，比如 BeanDefinitionParserDelegate 解析 bean 时记录，当前 bean 是被在 哪个 resource 中解析到的
+			// 传递过去，在 registerBeanDefinitions 中还会将 resource 封装为 Xml读取上下文，方便做一些读取异常、
+			// 读取事件、额外扩展等
 			return registerBeanDefinitions(doc, resource);
 		}
 		// 这里由 BeanDefinitionStoreException 衍生出了 BeanDefinitionStoreException

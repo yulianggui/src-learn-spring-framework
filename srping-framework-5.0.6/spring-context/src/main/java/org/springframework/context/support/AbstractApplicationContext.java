@@ -534,6 +534,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
 				// 扩展点， 调用 BeanFactory 中的 BeanPostProcessors init 之前调用
+				// 设置 BeanFactory 的后置处理器。这里是空的实现，留给子类扩展。下一步马上会调用了
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
@@ -541,14 +542,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
+				// 注册 Bean 的 后处理器，这些后处理器是在 bean 定义中向容器注册的
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
-				// 初始化消息源
+				// 初始化上下文消息源
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
-				// 初始化事件监听多路广播器
+				// 初始化事件监听多路广播器 -- 初始化上下文中的事件机制
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
@@ -556,13 +558,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				onRefresh();
 
 				// Check for listener beans and register them.
-				// 注册监听器
+				// 核查监听 bean ， 并且将这些bean 向容器注册 -- 注册监听器
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
+				// 实例化所有的 non-lazy-init bean
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+				// 发布容器结束事件
 				finishRefresh();
 			}
 
@@ -573,9 +577,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				}
 
 				// Destroy already created singletons to avoid dangling resources.
+				// 为防止 bean 资源占用，在异常中，销毁已经在前面过程中生成的单例 bean
 				destroyBeans();
 
 				// Reset 'active' flag.
+				// 重置 active 状态
 				cancelRefresh(ex);
 
 				// Propagate exception to caller.
@@ -585,6 +591,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			finally {
 				// Reset common introspection caches in Spring's core, since we
 				// might not ever need metadata for singleton beans anymore...
+				// 重置通用缓存。 反射工具缓存、注解工具缓存等
 				resetCommonCaches();
 			}
 		}

@@ -573,7 +573,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// 这里是相当之复杂的一个过程。
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
-		// 获取包装的 对象实例
+		// 获取 创建的 bean 对象实例(wrapper 只是包装)
 		final Object bean = instanceWrapper.getWrappedInstance();
 		// wrappedClass 即为 原始 beanName 对应的 class
 		Class<?> beanType = instanceWrapper.getWrappedClass();
@@ -608,6 +608,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.debug("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 运行暴露早期的 单例 bean。 第二个参数 为 ObjectFactory 工厂，用来获取 bean 实例
+			// 这里追关键的是 ObjectFactory 对 getObject 的实现
+
+
+			// 这里解决循环依赖的关键是， ObjectFactory 中返回的 bean 是未初始化完毕的，单由于 该出返回的 当前 bean 与后续需要进行
+			// 属性注入的 bean 是同一个，引用的地址是一样的，达到了单例 bean 注入的目的
+
+			// A --> B B -> A
+			// getBean(A) ，走到 addSingletonFactory ，将 ObjectFactory-A 的对象进行缓存
+			// 设置A 的属性 B，b 需要设置属性 A，则 getBean(A)
+			// 此时缓存中有 ObjectFactory-A，得到返回地址，赋值给 A 属性，此时 BeanB 解析完毕
+			// beanA 的b 属性设置完毕
+			// 继续进行进行其他属性的解析
+
+			// 当所有的 springBean 中的所有的bena 加载完毕，说明所有的属性也解析，注入完毕
 			// 添加到 singletonFactories 、删除 earlySingletonObjects
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
@@ -1188,7 +1203,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (args == null) {
 			synchronized (mbd.constructorArgumentLock) {
 				// 这里是一种缓存机制 ，如果 args 外部参数没传，则尝试解析 bean 中配置的 工厂方法或者构造参数
-				// 比如原型模式，到这里就有可能可以使用到缓存。 （寻找确定 工厂方法 || 构造参数的过程是比较耗性能的，做了优化）
+				// 比如原型模式，到这里就有可能可以使用到缓存。 （确定工厂方法 || 构造参数的过程是比较耗性能的，做了优化）
 				if (mbd.resolvedConstructorOrFactoryMethod != null) {
 					resolved = true;
 					autowireNecessary = mbd.constructorArgumentsResolved;
@@ -1237,6 +1252,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	protected BeanWrapper obtainFromSupplier(Supplier<?> instanceSupplier, String beanName) {
 
 		// 这里为什么要做这样的设计？ 而且是 5.0 才有的
+
+		// 这里的 outerBean 是什么意思？
+
 
 		// 当前线程之前创建的 beanName
 		String outerBean = this.currentlyCreatedBean.get();
@@ -1326,7 +1344,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getAccessControlContext());
 			}
 			else {
-				// 通过 CGlib beanWrapper 生成策略生成 beanWrapper对象
+				// 可能需要通过 CGlib beanWrapper 生成策略生成 beanWrapper对象，因为
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
 			BeanWrapper bw = new BeanWrapperImpl(beanInstance);

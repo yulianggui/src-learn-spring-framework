@@ -302,6 +302,8 @@ class PostProcessorRegistrationDelegate {
 	}
 
 	/**
+	 * importselector 这些也是从这里来的
+	 *
 	 * Invoke the given BeanDefinitionRegistryPostProcessor beans.
 	 */
 	private static void invokeBeanDefinitionRegistryPostProcessors(

@@ -57,7 +57,7 @@ public class XmlBeanFactory extends DefaultListableBeanFactory {
 	private final XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(this);
 
 
-	/**
+	/**H
 	 * Create a new XmlBeanFactory with the given resource,
 	 * which must be parsable using DOM.
 	 * @param resource XML resource to load bean definitions from

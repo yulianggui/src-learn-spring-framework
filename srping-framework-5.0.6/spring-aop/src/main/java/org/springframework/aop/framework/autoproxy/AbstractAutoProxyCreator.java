@@ -245,21 +245,32 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	@Override
 	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+
+		// 这里是 advice advisor 等 bean 的 bean ,而  postProcessAfterInitialization 是目标 target 的生成动态代理的逻辑
 		Object cacheKey = getCacheKey(beanClass, beanName);
 
+		// beanName 不为空 或者 不是目标的 beanName
 		if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+			// 缓存中存在，返回 null
 			if (this.advisedBeans.containsKey(cacheKey)) {
 				return null;
 			}
+			// Advice || Pointcut || Advisor || AopInfrastructureBean 返回 true , shouldSkip 默认实现为 false
 			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
 				this.advisedBeans.put(cacheKey, Boolean.FALSE);
 				return null;
 			}
 		}
 
+		// 创建一个代理，如果 我们有一个 客户的 代理源
 		// Create proxy here if we have a custom TargetSource.
 		// Suppresses unnecessary default instantiation of the target bean:
 		// The TargetSource will handle target instances in a custom fashion.
+		// 如果我们有自定义 TargetSource，请在此处创建代理。
+		// 禁止目标 bean 的不必要的默认实例化
+		// TargetSource 将以自定义方式处理目标实例
+		// 也就是说， TargetSource 一般都是定制化的 TargetSourceCreator[] ，在我们的日常开发中，基本不用回到
+		// 因此这里的 targetSource 通常为 null ，即实际上这里都会返回 null
 		TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
 		if (targetSource != null) {
 			if (StringUtils.hasLength(beanName)) {
@@ -301,6 +312,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (bean != null) {
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
 			if (!this.earlyProxyReferences.contains(cacheKey)) {
+				// 如果有必要，则返回代理类 -- 这里会找到所有的 通知器，如果有匹配的，那么就会返回代理类
 				return wrapIfNecessary(bean, beanName, cacheKey);
 			}
 		}
@@ -343,21 +355,26 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
+		// 再次确认是否为 isInfrastructureClass
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;
 		}
 
 		// Create proxy if we have advice.
+		// 返回匹配当前 bean 的所有的 advisor、advice、interceptor
+		// 找到 bean 所有的 通知器、拦截方法、通知等。
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+		// 如果不为 空，则创建一个代理类，返回
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
 			Object proxy = createProxy(
 					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+			// 缓存代理类
 			this.proxyTypes.put(cacheKey, proxy.getClass());
 			return proxy;
 		}
-
+		// 不管如何，当前已经过了，下次再来也不可能是需要被代理类了
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
 		return bean;
 	}
@@ -411,6 +428,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Nullable
 	protected TargetSource getCustomTargetSource(Class<?> beanClass, String beanName) {
 		// We can't create fancy target sources for directly registered singletons.
+		// 配置了 TargetSourceCreator，并且 TargetSourceCreator 列表中的 tsc.getTargetSource 有配置了 beanName
 		if (this.customTargetSourceCreators != null &&
 				this.beanFactory != null && this.beanFactory.containsBean(beanName)) {
 			for (TargetSourceCreator tsc : this.customTargetSourceCreators) {
@@ -444,13 +462,19 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	protected Object createProxy(Class<?> beanClass, @Nullable String beanName,
 			@Nullable Object[] specificInterceptors, TargetSource targetSource) {
 
+		// 在 beanDefinition 中配置  originalTargetClass 为 beanClass
 		if (this.beanFactory instanceof ConfigurableListableBeanFactory) {
 			AutoProxyUtils.exposeTargetClass((ConfigurableListableBeanFactory) this.beanFactory, beanName, beanClass);
 		}
 
+		// ProxyFactory 工厂
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.copyFrom(this);
 
+		// 在 schema-based 的配置方式中，我们介绍过，如果希望使用 CGLIB 来代理接口，可以配置
+		// proxy-target-class="true",这样不管有没有接口，都使用 CGLIB 来生成代理：
+		//   <aop:config proxy-target-class="true">......</aop:config>
+		// 这里主要是设置是使用 jdk 还是 cglib ， ProxyFactory 在创建 AopProxy 的时候
 		if (!proxyFactory.isProxyTargetClass()) {
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				proxyFactory.setProxyTargetClass(true);
@@ -460,16 +484,20 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			}
 		}
 
+		// 把所有的 advisor、advice、interceptor 都封装为 Advisor
 		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
 		proxyFactory.addAdvisors(advisors);
+		// 设计目标 targetSource
 		proxyFactory.setTargetSource(targetSource);
+		// 扩展方法，默认实现为空
 		customizeProxyFactory(proxyFactory);
-
+		// 优化--暂时不懂
 		proxyFactory.setFrozen(this.freezeProxy);
 		if (advisorsPreFiltered()) {
 			proxyFactory.setPreFiltered(true);
 		}
 
+		// 其实这里跟 ProxyFactoryBean 一个道理了
 		return proxyFactory.getProxy(getProxyClassLoader());
 	}
 

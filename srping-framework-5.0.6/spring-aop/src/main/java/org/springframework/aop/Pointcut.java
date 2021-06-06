@@ -39,6 +39,9 @@ public interface Pointcut {
 	ClassFilter getClassFilter();
 
 	/**
+	 * 对应 切点（拦截的方法的集合）的匹配判断，是通过 MethodMatcher 来完成的，也就是说，由 MethodMatcher 来判断决定是否要对当前的方法进行增强
+	 * 或者是否需要对当前调用方法应用配置号的 advice( 方法拦截通知功能 )
+	 *  比如： {@link org.springframework.aop.support.JdkRegexpMethodPointcut} 正则表达式匹配
 	 * Return the MethodMatcher for this pointcut.
 	 * @return the MethodMatcher (never {@code null})
 	 */

@@ -95,6 +95,8 @@ public class ProxyCreatorSupport extends AdvisedSupport {
 
 
 	/**
+	 * org.springframework.aop.framework.DefaultAopProxyFactory
+	 *
 	 * Subclasses should call this to get a new AOP proxy. They should <b>not</b>
 	 * create an AOP proxy with {@code this} as an argument.
 	 */

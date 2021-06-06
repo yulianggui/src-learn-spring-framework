@@ -17,8 +17,15 @@
 package org.springframework.aop;
 
 import org.aopalliance.aop.Advice;
+import org.springframework.aop.support.DefaultPointcutAdvisor;
 
 /**
+ *
+ * 通知器： 完成对目标方法的增强设计（Advice ） 和 关注点 （pointcut） 的设计以后，需要一个对象把他们组织起来。通过 Advisor
+ * 可以定义应该使用哪个通知并在那个关注点使用它，这个地方使用 IOC 容器配置 AOP 应用，或者说即开即用的使用 AOP 基础设施。
+ *
+ * 比如 {@link DefaultPointcutAdvisor } 有两个属性，Advice 、pointcut
+ *
  * Base interface holding AOP <b>advice</b> (action to take at a joinpoint)
  * and a filter determining the applicability of the advice (such as
  * a pointcut). <i>This interface is not for use by Spring users, but to

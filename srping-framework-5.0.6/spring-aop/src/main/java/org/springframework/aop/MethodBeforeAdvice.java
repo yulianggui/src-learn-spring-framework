@@ -21,6 +21,10 @@ import java.lang.reflect.Method;
 import org.springframework.lang.Nullable;
 
 /**
+ *
+ * MethodBefore ，针对方法调用之前的 通知，必须实现 before 这个回调
+ *   -- 接口定义
+ *
  * Advice invoked before a method is invoked. Such advices cannot
  * prevent the method call proceeding, unless they throw a Throwable.
  *
@@ -32,6 +36,12 @@ import org.springframework.lang.Nullable;
 public interface MethodBeforeAdvice extends BeforeAdvice {
 
 	/**
+	 * Method : 目标方法
+	 * args 参数
+	 * target 目标对象
+	 *
+	 * 比如 {@link org.springframework.tests.aop.advice.CountingBeforeAdvice} 对方法调用此时进行统计。非常简单
+	 *
 	 * Callback before a given method is invoked.
 	 * @param method method being invoked
 	 * @param args arguments to the method

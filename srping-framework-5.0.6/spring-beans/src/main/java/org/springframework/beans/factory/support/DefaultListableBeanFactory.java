@@ -788,7 +788,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			// MergedBeanDefinition ： 合并的 bean 定义，之所以称之为 “合并的”，是因为存在 “子定义” 和 “父定义” 的情况
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+				// 如果是一个 FactoryBean 实现了 FactoryBean
 				if (isFactoryBean(beanName)) {
+					// 先得到 &beanName ，这是个 FactoryBean
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
 					if (bean instanceof FactoryBean) {
 						final FactoryBean<?> factory = (FactoryBean<?>) bean;
@@ -816,6 +818,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// Trigger post-initialization callback for all applicable beans...
 		for (String beanName : beanNames) {
 			Object singletonInstance = getSingleton(beanName);
+			// SmartInitializingSingleton 类也会被执行
 			if (singletonInstance instanceof SmartInitializingSingleton) {
 				final SmartInitializingSingleton smartSingleton = (SmartInitializingSingleton) singletonInstance;
 				if (System.getSecurityManager() != null) {

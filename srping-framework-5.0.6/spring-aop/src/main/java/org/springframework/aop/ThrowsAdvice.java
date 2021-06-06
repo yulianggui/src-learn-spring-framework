@@ -50,4 +50,10 @@ package org.springframework.aop;
  */
 public interface ThrowsAdvice extends AfterAdvice {
 
+	// 这里没有指定任何方法，是因为这个逻辑是AOP 通过反射机制来处理的
+
+	// 这里在写通用功能的时候，也是可以参考的一种设计。通知在异常中看到
+
+	// public void afterThrowing(Exception ex)
+	// public void afterThrowing(RemoteException) 通过定义这样的方法得到捕获不同的异常
 }

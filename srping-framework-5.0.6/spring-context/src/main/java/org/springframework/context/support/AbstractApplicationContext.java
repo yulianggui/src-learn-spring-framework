@@ -687,7 +687,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// 忽ignoredDependencyInterface方法并不是让我们在自动装配时直接忽略实现了该接口的依赖，而是忽略该接口的实现类中和接口setter方法入参类型相同的依赖
 		// https://www.jianshu.com/p/3c7e0608ff1f?utm_campaign=maleskine&utm_content=note&utm_medium=seo_notes&utm_source=recommendation
 
-		// ignoreDependencyInterface 这个方法比较难理解，暂时忽略
+		// ignoreDependencyInterface,因为上面 ApplicationContextAwareProcessor 这个 postProcessor 会进行注入
 		// PS:跳过以下6个属性的自动注入,因为在ApplicationContextAwareProcessor后置处理器中通过setter注入,比如ApplicationContextAware#setApplicationContext
 		beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
 		beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
@@ -713,7 +713,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found.
-		// 如果beanFactory 中存在 beanName 为 loadTimeWeaver  的Bean，则添加一个 LoadTimeWeaverAwareProcessor
+		// 如果 beanFactory （还没有初始化，即beanMap 中）中存在 beanName 为 loadTimeWeaver  的Bean，则添加一个 LoadTimeWeaverAwareProcessor
 		if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
 			// 这个BPP用来处理LoadTimeWeaverAware接口的把LTW实例设置到实现了LoadTimeWeaverAware接口的bean中
 			// 暂时不理解起作用和用法
@@ -948,6 +948,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Instantiate all remaining (non-lazy-init) singletons.
 		// 5.实例化所有剩余（非懒加载）单例对象
+		// org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons
 		beanFactory.preInstantiateSingletons();
 	}
 
@@ -1016,6 +1017,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				@Override
 				public void run() {
 					synchronized (startupShutdownMonitor) {
+						// 钩子里边调用
 						doClose();
 					}
 				}
@@ -1061,6 +1063,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	}
 
 	/**
+	 * 钩子关闭
+	 *
 	 * Actually performs context closing: publishes a ContextClosedEvent and
 	 * destroys the singletons in the bean factory of this application context.
 	 * <p>Called by both {@code close()} and a JVM shutdown hook, if any.

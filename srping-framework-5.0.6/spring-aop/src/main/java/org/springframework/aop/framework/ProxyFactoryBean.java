@@ -249,10 +249,13 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	@Override
 	@Nullable
 	public Object getObject() throws BeansException {
+		// 初始化通知器链，这里封装了一些列拦截器，这些拦截器都要从配置中读取，为代理对象的生成做好准备
 		initializeAdvisorChain();
+		// 是否为单例
 		if (isSingleton()) {
 			return getSingletonInstance();
 		}
+		// 非单例
 		else {
 			if (this.targetName == null) {
 				logger.warn("Using non-singleton proxies with singleton targets is often undesirable. " +
@@ -327,6 +330,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			}
 			// Initialize the shared singleton instance.
 			super.setFrozen(this.freezeProxy);
+			// 桐楠格 AopPoxy 创建代理对象
 			this.singletonInstance = getProxy(createAopProxy());
 		}
 		return this.singletonInstance;
@@ -431,10 +435,13 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 	 * are unaffected by such changes.
 	 */
 	private synchronized void initializeAdvisorChain() throws AopConfigException, BeansException {
+
+		// advisorChainInitialized 用来标识通知器链是否已经初始化了
 		if (this.advisorChainInitialized) {
 			return;
 		}
 
+		// 读取配置中配置的通知器
 		if (!ObjectUtils.isEmpty(this.interceptorNames)) {
 			if (this.beanFactory == null) {
 				throw new IllegalStateException("No BeanFactory available anymore (probably due to serialization) " +
@@ -442,12 +449,14 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 			}
 
 			// Globals can't be last unless we specified a targetSource using the property...
+			// 如果 interceptorNames 的最后一个名字，已 * 结尾，并且 目标对象名称为 空，并且 TargetSource 为 默认空值
 			if (this.interceptorNames[this.interceptorNames.length - 1].endsWith(GLOBAL_SUFFIX) &&
 					this.targetName == null && this.targetSource == EMPTY_TARGET_SOURCE) {
 				throw new AopConfigException("Target required after globals");
 			}
 
 			// Materialize interceptor chain from bean names.
+			// 遍历通知器，这些通知器在 spring ioc 中被配置成为了 bean 了，通过 getBean 的方法初始化
 			for (String name : this.interceptorNames) {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Configuring advisor or advice '" + name + "'");
@@ -471,6 +480,7 @@ public class ProxyFactoryBean extends ProxyCreatorSupport
 						advice = this.beanFactory.getBean(name);
 					}
 					else {
+						// 原型 bean Advice 或者 Advisor（name）
 						// It's a prototype Advice or Advisor: replace with a prototype.
 						// Avoid unnecessary creation of prototype bean just for advisor chain initialization.
 						advice = new PrototypePlaceholderAdvisor(name);

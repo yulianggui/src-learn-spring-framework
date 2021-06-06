@@ -175,7 +175,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	}
 
 
-	/**
+	/**AbstractAutoProxyCreator
 	 * Subclass of BeanFactoryAdvisorRetrievalHelper that delegates to
 	 * surrounding AbstractAdvisorAutoProxyCreator facilities.
 	 */

@@ -33,13 +33,20 @@ public class ProxyConfig implements Serializable {
 	/** use serialVersionUID from Spring 1.2 for interoperability */
 	private static final long serialVersionUID = -8409359707199703185L;
 
-
+	/**
+	 * 为 true 时，不管是接口还是类，都使用 CGLIB
+	 * 为 false 时，接口使用 JDK，类使用 CGLIB
+	 */
 	private boolean proxyTargetClass = false;
 
 	private boolean optimize = false;
 
 	boolean opaque = false;
-
+	/**
+	 * 是否暴露代理，也就是是否把当前代理对象绑定到AopContext的ThreadLocal属性currentProxy上去，常用于代理类里面的代理方法需要调用同类里面另外一个代理方法的场景
+	 * 在实际开发过程中，我们有时候会碰到一个类中2个方法嵌套调用，如果这两个方法都有切面逻辑，比如事务，会发现内部嵌套的那个方法切面会失效，exposeProxy就是为这种场景做的兼容
+	 * AopContext.currentProxy()来获取这个代理对象，进行调用。
+	 */
 	boolean exposeProxy = false;
 
 	private boolean frozen = false;

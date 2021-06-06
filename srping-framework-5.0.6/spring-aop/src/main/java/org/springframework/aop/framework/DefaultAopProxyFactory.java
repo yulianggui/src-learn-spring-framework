@@ -48,15 +48,21 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 
 	@Override
 	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
+
+		// hasNoUserSuppliedProxyInterfaces --> 判断是否有实现自定义的接口
 		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
 			Class<?> targetClass = config.getTargetClass();
 			if (targetClass == null) {
 				throw new AopConfigException("TargetSource cannot determine target class: " +
 						"Either an interface or a target is required for proxy creation.");
 			}
+
+			// 如果 isInterface 是一个接口 或者 是一个JDK 中的 代理类 Class
 			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
+				// Jdk AopProxy 对象
 				return new JdkDynamicAopProxy(config);
 			}
+			// cglib
 			return new ObjenesisCglibAopProxy(config);
 		}
 		else {
@@ -70,6 +76,8 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 	 * (or no proxy interfaces specified at all).
 	 */
 	private boolean hasNoUserSuppliedProxyInterfaces(AdvisedSupport config) {
+		// 接口列表
+		// 如果为零，说明没有定义有接口； 如果 只有一个，且为 SpringProxy，则也认为是没有
 		Class<?>[] ifcs = config.getProxiedInterfaces();
 		return (ifcs.length == 0 || (ifcs.length == 1 && SpringProxy.class.isAssignableFrom(ifcs[0])));
 	}

@@ -215,10 +215,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFactory) {
 		Assert.notNull(singletonFactory, "Singleton factory must not be null");
 		synchronized (this.singletonObjects) {
+			// 一级缓存
 			if (!this.singletonObjects.containsKey(beanName)) {
-				// 存入 beanName, singletonFactory
+				// 三级级缓存-存入 beanName, singletonFactory
 				this.singletonFactories.put(beanName, singletonFactory);
-				// 删除早期的单例对象
+				// 二级缓存--删除早期的单例对象
 				this.earlySingletonObjects.remove(beanName);
 				// 注册 bean 的顺序
 				this.registeredSingletons.add(beanName);

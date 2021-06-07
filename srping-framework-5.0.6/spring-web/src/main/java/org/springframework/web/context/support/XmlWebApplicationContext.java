@@ -61,12 +61,21 @@ import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
  */
 public class XmlWebApplicationContext extends AbstractRefreshableWebApplicationContext {
 
+	/**
+	 * 默认的 配置文件的路径
+	 */
 	/** Default config location for the root context */
 	public static final String DEFAULT_CONFIG_LOCATION = "/WEB-INF/applicationContext.xml";
 
+	/**
+	 * 默认的路径
+	 */
 	/** Default prefix for building a config location for a namespace */
 	public static final String DEFAULT_CONFIG_LOCATION_PREFIX = "/WEB-INF/";
 
+	/**
+	 * 默认的文件名后缀
+	 */
 	/** Default suffix for building a config location for a namespace */
 	public static final String DEFAULT_CONFIG_LOCATION_SUFFIX = ".xml";
 
@@ -79,6 +88,9 @@ public class XmlWebApplicationContext extends AbstractRefreshableWebApplicationC
 	 */
 	@Override
 	protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
+
+		// 这里的 加载过程在 refresh 方法被调用时启动
+
 		// Create a new XmlBeanDefinitionReader for the given BeanFactory.
 		XmlBeanDefinitionReader beanDefinitionReader = new XmlBeanDefinitionReader(beanFactory);
 

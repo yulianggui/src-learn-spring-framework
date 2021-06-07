@@ -487,6 +487,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	@Override
 	protected void onRefresh(ApplicationContext context) {
+		// initStrategies 比较重要的逻辑了
 		initStrategies(context);
 	}
 

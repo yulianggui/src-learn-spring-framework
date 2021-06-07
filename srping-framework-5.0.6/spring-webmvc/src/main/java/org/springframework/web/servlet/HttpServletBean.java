@@ -151,7 +151,9 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		}
 
 		// Set bean properties from init parameters.
+		// 获取 servlet 的 init-parameters 参数，这些都是 servlet 的基础了
 		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
+		// 如果参数不为 空,将当前的 DispatcherServlet 。 这里其实只是校验属性，并没有实际性的使用 bw
 		if (!pvs.isEmpty()) {
 			try {
 				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
@@ -169,6 +171,7 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		}
 
 		// Let subclasses do whatever initialization they like.
+		// 让子类去执行 初始 org.springframework.web.servlet.FrameworkServlet.initServletBean
 		initServletBean();
 
 		if (logger.isDebugEnabled()) {

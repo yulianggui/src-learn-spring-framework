@@ -81,14 +81,20 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	 * @see #isEligibleBean
 	 */
 	public List<Advisor> buildAspectJAdvisors() {
+		// 缓存 aspectBeanNames
 		List<String> aspectNames = this.aspectBeanNames;
 
+		// 缓存为空，则需要提取
 		if (aspectNames == null) {
 			synchronized (this) {
+				// 上锁并校验
 				aspectNames = this.aspectBeanNames;
 				if (aspectNames == null) {
+					// 这个是结果
 					List<Advisor> advisors = new LinkedList<>();
+					// 链式的
 					aspectNames = new LinkedList<>();
+					// 获取所有 的 baanNames
 					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 							this.beanFactory, Object.class, true, false);
 					for (String beanName : beanNames) {
@@ -97,23 +103,37 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
 						// would be cached by the Spring container but would not have been weaved.
+						// 获取 bean 的类型
 						Class<?> beanType = this.beanFactory.getType(beanName);
 						if (beanType == null) {
 							continue;
 						}
+						// 如果是一个 isAspect
 						if (this.advisorFactory.isAspect(beanType)) {
 							aspectNames.add(beanName);
+							// 解析 得到 AspectMetadata。这里 AspectMetadata 就是一个 Aspect 注解元信息描述类
 							AspectMetadata amd = new AspectMetadata(beanType, beanName);
+
+							// 一般走 SINGLETON 这个逻辑
 							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+
+								// 工厂 BeanFactoryAspectInstanceFactory 的构造方法又初始化了一个 AspectMetadata
 								MetadataAwareAspectInstanceFactory factory =
 										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+								// 根据工厂获取 classAdvisors
+								// 这里就说真正解析 @AspectJ 的这个实例对象了。通过他来获取里边定义的 各种增强
 								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+
+								// 如果是单例的 beanName 。放入缓存中
 								if (this.beanFactory.isSingleton(beanName)) {
 									this.advisorsCache.put(beanName, classAdvisors);
 								}
 								else {
+									// 否则缓存 factory 工厂
 									this.aspectFactoryCache.put(beanName, factory);
 								}
+
+								// 完成 本次 beanName 通知器的获取
 								advisors.addAll(classAdvisors);
 							}
 							else {
@@ -145,6 +165,7 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 				advisors.addAll(cachedAdvisors);
 			}
 			else {
+				// 非单例的 bean。现获取解析工厂
 				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);
 				advisors.addAll(this.advisorFactory.getAdvisors(factory));
 			}

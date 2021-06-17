@@ -372,6 +372,7 @@ public abstract class AbstractApplicationEventMulticaster
 			for (ApplicationListener<?> listener : this.applicationListeners) {
 				allListeners.add(listener);
 			}
+			// 如果 applicationListenerBeans 不为空，则遍历获取
 			if (!this.applicationListenerBeans.isEmpty()) {
 				BeanFactory beanFactory = getBeanFactory();
 				for (String listenerBeanName : this.applicationListenerBeans) {
@@ -387,6 +388,7 @@ public abstract class AbstractApplicationEventMulticaster
 					}
 				}
 			}
+			// 排序
 			AnnotationAwareOrderComparator.sort(allListeners);
 			return allListeners;
 		}

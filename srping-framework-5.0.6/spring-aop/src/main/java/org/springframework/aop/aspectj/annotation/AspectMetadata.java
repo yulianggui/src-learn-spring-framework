@@ -82,6 +82,7 @@ public class AspectMetadata implements Serializable {
 		this.aspectName = aspectName;
 
 		Class<?> currClass = aspectClass;
+		// currClass ，解析 类继承体系，获取标注了 isAspect 的 class
 		AjType<?> ajType = null;
 		while (currClass != Object.class) {
 			AjType<?> ajTypeToCheck = AjTypeSystem.getAjType(currClass);
@@ -94,12 +95,14 @@ public class AspectMetadata implements Serializable {
 		if (ajType == null) {
 			throw new IllegalArgumentException("Class '" + aspectClass.getName() + "' is not an @AspectJ aspect");
 		}
+		// 默认为 0 ，不大需要理会
 		if (ajType.getDeclarePrecedence().length > 0) {
 			throw new IllegalArgumentException("DeclarePrecendence not presently supported in Spring AOP");
 		}
 		this.aspectClass = ajType.getJavaClass();
 		this.ajType = ajType;
 
+		// PerClause 其实是 @AspectJ 的属性，这里一般不填。则 返回 SINGLETON
 		switch (this.ajType.getPerClause().getKind()) {
 			case SINGLETON:
 				this.perClausePointcut = Pointcut.TRUE;

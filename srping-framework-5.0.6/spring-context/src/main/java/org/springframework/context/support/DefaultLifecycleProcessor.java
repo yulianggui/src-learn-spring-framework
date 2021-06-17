@@ -118,6 +118,7 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 
 	@Override
 	public void onRefresh() {
+		// 开始调用 Lifecycle 这些 bean 的 一些 start 方法了
 		startBeans(true);
 		this.running = true;
 	}
@@ -139,11 +140,17 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 	private void startBeans(boolean autoStartupOnly) {
 		Map<String, Lifecycle> lifecycleBeans = getLifecycleBeans();
 		Map<Integer, LifecycleGroup> phases = new HashMap<>();
+		// forEach 遍历
 		lifecycleBeans.forEach((beanName, bean) -> {
+			// 如果 是 SmartLifecycle，并且开启了 自动 开始。这便会调用。 获取 autoStartupOnly = false。而容器启动的时候，调用的是 onFresh，里边 autoStartupOnly = true.
 			if (!autoStartupOnly || (bean instanceof SmartLifecycle && ((SmartLifecycle) bean).isAutoStartup())) {
+				// 获取 phase。这个也是 bean 中 SmartLifecycle 实现了  Phased 方法
+				// phase 分阶段--阶段的。分组的，其实也是用来做优先级排序和分组的
 				int phase = getPhase(bean);
+				// 分组
 				LifecycleGroup group = phases.get(phase);
 				if (group == null) {
+					// 包装为一个分组，咱且先不执行
 					group = new LifecycleGroup(phase, this.timeoutPerShutdownPhase, lifecycleBeans, autoStartupOnly);
 					phases.put(phase, group);
 				}
@@ -152,8 +159,10 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 		});
 		if (!phases.isEmpty()) {
 			List<Integer> keys = new ArrayList<>(phases.keySet());
+			// 排序
 			Collections.sort(keys);
 			for (Integer key : keys) {
+				// 执行 start 方法
 				phases.get(key).start();
 			}
 		}

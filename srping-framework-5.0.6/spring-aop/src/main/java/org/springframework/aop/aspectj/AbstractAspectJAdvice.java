@@ -383,18 +383,26 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 			return;
 		}
 
+		// 参数的长度
 		int numUnboundArgs = this.parameterTypes.length;
+		// 参数的类型
 		Class<?>[] parameterTypes = this.aspectJAdviceMethod.getParameterTypes();
+
+		// 仅仅取第一个参数当做 切面的一些参数
+		// JoinPoint | ProceedingJoinPoint | JoinPoint.StaticPart
+		// ProceedingJoinPoint 环绕通知。  JoinPoint.StaticPart（没使用过）
 		if (maybeBindJoinPoint(parameterTypes[0]) || maybeBindProceedingJoinPoint(parameterTypes[0]) ||
 				maybeBindJoinPointStaticPart(parameterTypes[0])) {
 			numUnboundArgs--;
 		}
 
+		// 如果 numUnboundArgs 不进进是一个。需要绑定
 		if (numUnboundArgs > 0) {
 			// need to bind arguments by name as returned from the pointcut match
 			bindArgumentsByName(numUnboundArgs);
 		}
 
+		// 标志位。说明通知方法存在参数
 		this.argumentsIntrospected = true;
 	}
 
@@ -481,6 +489,7 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 		}
 
 		// So we match in number...
+		// 方法参数位移
 		int argumentIndexOffset = this.parameterTypes.length - numArgumentsLeftToBind;
 		for (int i = argumentIndexOffset; i < this.argumentNames.length; i++) {
 			this.argumentBindings.put(this.argumentNames[i], i);
@@ -488,6 +497,8 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 
 		// Check that returning and throwing were in the argument names list if
 		// specified, and find the discovered argument types.
+
+		// 返回参数名称
 		if (this.returningName != null) {
 			if (!this.argumentBindings.containsKey(this.returningName)) {
 				throw new IllegalStateException("Returning argument name '" + this.returningName +
@@ -499,6 +510,7 @@ public abstract class AbstractAspectJAdvice implements Advice, AspectJPrecedence
 				this.discoveredReturningGenericType = this.aspectJAdviceMethod.getGenericParameterTypes()[index];
 			}
 		}
+		// 异常 -- 比如在环绕中指定特定的异常参数信息等
 		if (this.throwingName != null) {
 			if (!this.argumentBindings.containsKey(this.throwingName)) {
 				throw new IllegalStateException("Throwing argument name '" + this.throwingName +

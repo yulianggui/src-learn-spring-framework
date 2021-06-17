@@ -70,6 +70,7 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 
 
 	/**
+	 * 可以通过依赖注入的方式存入
 	 * Set a custom executor (typically a {@link org.springframework.core.task.TaskExecutor})
 	 * to invoke each listener with.
 	 * <p>Default is equivalent to {@link org.springframework.core.task.SyncTaskExecutor},
@@ -129,13 +130,16 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 
 	@Override
 	public void multicastEvent(final ApplicationEvent event, @Nullable ResolvableType eventType) {
+		// 获取事件源类型。 因此这里只会触发指定的事件类型的监听器
 		ResolvableType type = (eventType != null ? eventType : resolveDefaultEventType(event));
 		for (final ApplicationListener<?> listener : getApplicationListeners(event, type)) {
+			// 获取所有的 listener 监听器。如果配置了 getTaskExecutor ，则使用 executor 执行
 			Executor executor = getTaskExecutor();
 			if (executor != null) {
 				executor.execute(() -> invokeListener(listener, event));
 			}
 			else {
+				// 当前线程执行
 				invokeListener(listener, event);
 			}
 		}
@@ -152,6 +156,7 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 	 * @since 4.1
 	 */
 	protected void invokeListener(ApplicationListener<?> listener, ApplicationEvent event) {
+		// 错误处理器
 		ErrorHandler errorHandler = getErrorHandler();
 		if (errorHandler != null) {
 			try {
@@ -169,6 +174,7 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void doInvokeListener(ApplicationListener listener, ApplicationEvent event) {
 		try {
+			// 调用即可
 			listener.onApplicationEvent(event);
 		}
 		catch (ClassCastException ex) {

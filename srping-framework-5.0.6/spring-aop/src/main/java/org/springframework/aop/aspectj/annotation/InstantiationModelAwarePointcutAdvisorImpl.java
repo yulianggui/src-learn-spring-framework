@@ -94,6 +94,7 @@ class InstantiationModelAwarePointcutAdvisorImpl
 		this.declarationOrder = declarationOrder;
 		this.aspectName = aspectName;
 
+		// 延迟加载
 		if (aspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			// Static part of the pointcut is a lazy type.
 			Pointcut preInstantiationPointcut = Pointcuts.union(
@@ -108,8 +109,10 @@ class InstantiationModelAwarePointcutAdvisorImpl
 		}
 		else {
 			// A singleton aspect.
+			// 非延迟。
 			this.pointcut = this.declaredPointcut;
 			this.lazy = false;
+			// 主要逻辑
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 	}
@@ -164,6 +167,10 @@ class InstantiationModelAwarePointcutAdvisorImpl
 
 
 	private Advice instantiateAdvice(AspectJExpressionPointcut pointcut) {
+		// 通过 aspectJAdvisorFactory 来获取
+
+		// 根据 @Before 、@After 的不同类型，返回不同的 Advice 通知
+		// 比如：Before -> AspectJMethodBeforeAdvice  -- 这些就回归到了 最基础的 advice 的使用了。底层的架子，真正的核心增强
 		Advice advice = this.aspectJAdvisorFactory.getAdvice(this.aspectJAdviceMethod, pointcut,
 				this.aspectInstanceFactory, this.declarationOrder, this.aspectName);
 		return (advice != null ? advice : EMPTY_ADVICE);

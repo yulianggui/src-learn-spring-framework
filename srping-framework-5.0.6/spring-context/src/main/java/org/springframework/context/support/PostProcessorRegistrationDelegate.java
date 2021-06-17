@@ -180,6 +180,7 @@ class PostProcessorRegistrationDelegate {
 			}
 			else if (beanFactory.isTypeMatch(ppName, PriorityOrdered.class)) {
 				// 优先级更高的 PriorityOrdered
+				// 这里 调用了 getBean ，破案了
 				priorityOrderedPostProcessors.add(beanFactory.getBean(ppName, BeanFactoryPostProcessor.class));
 			}
 			else if (beanFactory.isTypeMatch(ppName, Ordered.class)) {
@@ -197,6 +198,7 @@ class PostProcessorRegistrationDelegate {
 		// Next, invoke the BeanFactoryPostProcessors that implement Ordered.
 		List<BeanFactoryPostProcessor> orderedPostProcessors = new ArrayList<>();
 		for (String postProcessorName : orderedPostProcessorNames) {
+			// 这里 调用了 getBean ，破案了
 			orderedPostProcessors.add(beanFactory.getBean(postProcessorName, BeanFactoryPostProcessor.class));
 		}
 		sortPostProcessors(orderedPostProcessors, beanFactory);
@@ -227,8 +229,11 @@ class PostProcessorRegistrationDelegate {
 		// Register BeanPostProcessorChecker that logs an info message when
 		// a bean is created during BeanPostProcessor instantiation, i.e. when
 		// a bean is not eligible for getting processed by all BeanPostProcessors.
-		// 为啥多加了一个 1 ？ 多加一个1，是因为这里手动添加了 BeanPostProcessorChecker，但是这个BeanPostProcessorChecker的作用暂时看不懂
+		// beanFactory 容器中的 ， + <bean> 中配置的，再加 1（BeanPostProcessorChecker）
 		int beanProcessorTargetCount = beanFactory.getBeanPostProcessorCount() + 1 + postProcessorNames.length;
+		// 为啥多加了一个 1 ？ 多加一个1，是因为这里手动添加了 BeanPostProcessorChecker，但是这个BeanPostProcessorChecker的作用暂时看不懂
+		// BeanPostProcessorChecker 是一个普通的信息打印，可能会有些情况下，当 spring 的配置中的后处理器还没有注册就已经开始 bean 的初始化时，边会
+		// 打印出 BeanPostProcessorCheck 中设定的信息（说明 BeanPostProcessors 还没有生效）
 		beanFactory.addBeanPostProcessor(new BeanPostProcessorChecker(beanFactory, beanProcessorTargetCount));
 
 		// Separate between BeanPostProcessors that implement PriorityOrdered,
@@ -260,6 +265,7 @@ class PostProcessorRegistrationDelegate {
 		// Next, register the BeanPostProcessors that implement Ordered.
 		List<BeanPostProcessor> orderedPostProcessors = new ArrayList<>();
 		for (String ppName : orderedPostProcessorNames) {
+			// 优先初始化 -- beanPostProcessor ，破案了
 			BeanPostProcessor pp = beanFactory.getBean(ppName, BeanPostProcessor.class);
 			orderedPostProcessors.add(pp);
 			if (pp instanceof MergedBeanDefinitionPostProcessor) {
@@ -272,9 +278,13 @@ class PostProcessorRegistrationDelegate {
 		// Now, register all regular BeanPostProcessors.
 		List<BeanPostProcessor> nonOrderedPostProcessors = new ArrayList<>();
 		for (String ppName : nonOrderedPostProcessorNames) {
+			// 优先初始化 -- beanPostProcessor ，破案了
 			BeanPostProcessor pp = beanFactory.getBean(ppName, BeanPostProcessor.class);
 			nonOrderedPostProcessors.add(pp);
+			// 然后主动添加到 列表中
+			// 如果是一个 MergedBeanDefinitionPostProcessor，
 			if (pp instanceof MergedBeanDefinitionPostProcessor) {
+				// 这里可能会想到 pp 会重复添加。其实不然，在 registerBeanPostProcessors 中的 beanFactory.addBeanPostProcessor(postProcessor); 有奥妙
 				internalPostProcessors.add(pp);
 			}
 		}
@@ -365,6 +375,9 @@ class PostProcessorRegistrationDelegate {
 			if (!(bean instanceof BeanPostProcessor) && !isInfrastructureBean(beanName) &&
 					this.beanFactory.getBeanPostProcessorCount() < this.beanPostProcessorTargetCount) {
 				// 什么时候 this.beanFactory.getBeanPostProcessorCount() 会小于 beanPostProcessorTargetCount ？？？
+				// 未配置的时候。其实这里跟 org.springframework.context.support.PostProcessorRegistrationDelegate
+				// .registerBeanPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory, org.springframework.context.support.AbstractApplicationContext)
+				// 呼应了
 				if (logger.isInfoEnabled()) {
 					logger.info("Bean '" + beanName + "' of type [" + bean.getClass().getName() +
 							"] is not eligible for getting processed by all BeanPostProcessors " +

@@ -123,11 +123,20 @@ public abstract class AopConfigUtils {
 
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
 
+		// 如果有  org.springframework.aop.config.internalAutoProxyCreator 的 beanName
+
+		// 这里如果是外部配置的，并且与自动代理创建的不一致，则需要对比优先级了。根据优先级确定是否使用哪一个
 		if (registry.containsBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME)) {
+			// 获取定义 cls = org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator
 			BeanDefinition apcDefinition = registry.getBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME);
+			// 如果不是 org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator
 			if (!cls.getName().equals(apcDefinition.getBeanClassName())) {
+				// 当前的优先级
+				// 优先级见 org.springframework.aop.config.AopConfigUtils.APC_PRIORITY_LIST
 				int currentPriority = findPriorityForClass(apcDefinition.getBeanClassName());
+				// 最低的优先级 即 cls
 				int requiredPriority = findPriorityForClass(cls);
+				// 如果外部配置的优先级没有 requiredPriority 高，则还是需要使用 自动创建的
 				if (currentPriority < requiredPriority) {
 					apcDefinition.setBeanClassName(cls.getName());
 				}
@@ -135,8 +144,10 @@ public abstract class AopConfigUtils {
 			return null;
 		}
 
+		// 外部没有配置。则初始化一个 ，注册到 beanDefinitionMap 中
 		RootBeanDefinition beanDefinition = new RootBeanDefinition(cls);
 		beanDefinition.setSource(source);
+		// 硬编码配置 order 的优先级
 		beanDefinition.getPropertyValues().add("order", Ordered.HIGHEST_PRECEDENCE);
 		beanDefinition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
 		registry.registerBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME, beanDefinition);

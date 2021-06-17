@@ -41,6 +41,8 @@ class AspectJAutoProxyBeanDefinitionParser implements BeanDefinitionParser {
 	@Override
 	@Nullable
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
+		// 注册 AspectJAnnotationAutoProxyCreator
+		// aop 注解实现自动对 bean 进行代理对象的创建依靠 AspectJAnnotationAutoProxyCreator。这里 spring 帮我们免去了 AspectJAnnotationAutoProxyCreator 的注册
 		AopNamespaceUtils.registerAspectJAnnotationAutoProxyCreatorIfNecessary(parserContext, element);
 		extendBeanDefinition(element, parserContext);
 		return null;

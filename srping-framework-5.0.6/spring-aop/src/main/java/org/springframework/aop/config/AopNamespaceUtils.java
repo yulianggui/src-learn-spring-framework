@@ -74,19 +74,29 @@ public abstract class AopNamespaceUtils {
 	public static void registerAspectJAnnotationAutoProxyCreatorIfNecessary(
 			ParserContext parserContext, Element sourceElement) {
 
+		// 如果有必要，注册 AspectJAnnotationAutoProxyCreator 注解形式的 自动代理 AOP
 		BeanDefinition beanDefinition = AopConfigUtils.registerAspectJAnnotationAutoProxyCreatorIfNecessary(
 				parserContext.getRegistry(), parserContext.extractSource(sourceElement));
+		// 处理 proxy-target-class 和 expose-proxy 的属性
 		useClassProxyingIfNecessary(parserContext.getRegistry(), sourceElement);
+		// 注册 bean 注册完成事件
 		registerComponentIfNecessary(beanDefinition, parserContext);
 	}
 
 	private static void useClassProxyingIfNecessary(BeanDefinitionRegistry registry, @Nullable Element sourceElement) {
 		if (sourceElement != null) {
 			boolean proxyTargetClass = Boolean.parseBoolean(sourceElement.getAttribute(PROXY_TARGET_CLASS_ATTRIBUTE));
+			// 如果 proxy-target-class = true
 			if (proxyTargetClass) {
+				// 则将 org.springframework.aop.config.internalAutoProxyCreator 这个 bean 添加属性 proxy-target-class 为 true
 				AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
 			}
 			boolean exposeProxy = Boolean.parseBoolean(sourceElement.getAttribute(EXPOSE_PROXY_ATTRIBUTE));
+
+			// 有时候目标对象内部的自我调用将无法实现切面中的增强，可以通过设置该值； 这样就会放到 ThreadLocal 中，通过代码的获取到 ThreadLocal 获取代理类。然后调用
+			// 从而使得在事务传播的过程中，可能无法进行下一个 内部调用方法的事务增强。具体需要根据使用的事务传播机制
+
+			// (AopContext.currentProxy())
 			if (exposeProxy) {
 				AopConfigUtils.forceAutoProxyCreatorToExposeProxy(registry);
 			}

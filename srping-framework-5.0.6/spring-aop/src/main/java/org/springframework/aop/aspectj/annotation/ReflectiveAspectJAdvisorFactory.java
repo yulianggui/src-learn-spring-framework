@@ -72,6 +72,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	private static final Comparator<Method> METHOD_COMPARATOR;
 
 	static {
+		// 排序器： Around > Before > After > AfterReturning > AfterThrowing
 		Comparator<Method> adviceKindComparator = new ConvertingComparator<>(
 				new InstanceComparator<>(
 						Around.class, Before.class, After.class, AfterReturning.class, AfterThrowing.class),
@@ -112,8 +113,13 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 	@Override
 	public List<Advisor> getAdvisors(MetadataAwareAspectInstanceFactory aspectInstanceFactory) {
+
+		// 获取标记为 @AspectJ 的 类
 		Class<?> aspectClass = aspectInstanceFactory.getAspectMetadata().getAspectClass();
+		// 获取标记为 @AspectJ 的 bean 名称
 		String aspectName = aspectInstanceFactory.getAspectMetadata().getAspectName();
+
+		// 验证 -- 重写验证一遍
 		validate(aspectClass);
 
 		// We need to wrap the MetadataAwareAspectInstanceFactory with a decorator
@@ -122,20 +128,29 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				new LazySingletonAspectInstanceFactoryDecorator(aspectInstanceFactory);
 
 		List<Advisor> advisors = new LinkedList<>();
+
+		// 这里返回的 method 是排序过的 org.springframework.aop.aspectj.annotation.ReflectiveAspectJAdvisorFactory
+		// getAdvisorMethods 获取没有添加 Pointcut 注解的 方法
 		for (Method method : getAdvisorMethods(aspectClass)) {
+			// method 增强 -- 这个是主要逻辑
+			//
 			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
 			if (advisor != null) {
 				advisors.add(advisor);
 			}
 		}
 
-		// If it's a per target aspect, emit the dummy instantiating aspect.
+		// If it's   per target aspect, emit the dummy instantiating aspect.
+
+		// 如果获取到了 增强器。并且 配置了增强的延迟初始化，则需要在首位加入同步实例化增强 AspectMetadata 的 LazilyInstantiated org.aspectj.lang.reflect.PerClauseKind.PERTYPEWITHIN 等，默认不开启
 		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
+			// 将再添加一个通知器，并且放在第一位 instantiationAdvisor
 			advisors.add(0, instantiationAdvisor);
 		}
 
 		// Find introduction fields.
+		// 字段的增强器 -- spring aop 中忽略
 		for (Field field : aspectClass.getDeclaredFields()) {
 			Advisor advisor = getDeclareParentsAdvisor(field);
 			if (advisor != null) {
@@ -154,6 +169,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				methods.add(method);
 			}
 		});
+		// 排序
 		methods.sort(METHOD_COMPARATOR);
 		return methods;
 	}
@@ -187,28 +203,39 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 	public Advisor getAdvisor(Method candidateAdviceMethod, MetadataAwareAspectInstanceFactory aspectInstanceFactory,
 			int declarationOrderInAspect, String aspectName) {
 
+		// 校验，再次校验
 		validate(aspectInstanceFactory.getAspectMetadata().getAspectClass());
 
+		// 获取 Pointcut 表达式
 		AspectJExpressionPointcut expressionPointcut = getPointcut(
 				candidateAdviceMethod, aspectInstanceFactory.getAspectMetadata().getAspectClass());
+
+		// 没有找到切面表达式，则直接返回了
 		if (expressionPointcut == null) {
 			return null;
 		}
 
+		// 根据切点信息生产增强器； 所有的 增强都通过 InstantiationModelAwarePointcutAdvisorImpl 来进行封装
+		// declarationOrderInAspect 这个是 增强的 索引  -- （当然如果开启了 延迟化，则为索引+1）
+		// Advisor 通知器里边 有 各种类型的 增强 advice
 		return new InstantiationModelAwarePointcutAdvisorImpl(expressionPointcut, candidateAdviceMethod,
 				this, aspectInstanceFactory, declarationOrderInAspect, aspectName);
 	}
 
 	@Nullable
 	private AspectJExpressionPointcut getPointcut(Method candidateAdviceMethod, Class<?> candidateAspectClass) {
+
+		// 解析 注解信息，也就是 @Before 、@After 等
 		AspectJAnnotation<?> aspectJAnnotation =
 				AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(candidateAdviceMethod);
 		if (aspectJAnnotation == null) {
 			return null;
 		}
 
+		// 获取界面表达式 pointcut
 		AspectJExpressionPointcut ajexp =
 				new AspectJExpressionPointcut(candidateAspectClass, new String[0], new Class<?>[0]);
+		// 设置表达式信息
 		ajexp.setExpression(aspectJAnnotation.getPointcutExpression());
 		if (this.beanFactory != null) {
 			ajexp.setBeanFactory(this.beanFactory);
@@ -243,14 +270,17 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 			logger.debug("Found AspectJ method: " + candidateAdviceMethod);
 		}
 
+		// 通知
 		AbstractAspectJAdvice springAdvice;
 
 		switch (aspectJAnnotation.getAnnotationType()) {
 			case AtBefore:
+				// 强制拦截器，一般是放在 MethodBeforeAdviceInterceptor 中.相当于中间类
 				springAdvice = new AspectJMethodBeforeAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
 			case AtAfter:
+				// 而 after 增强，则直接 AspectJAfterAdvice ，不经过 xxxAdviceInterceptor
 				springAdvice = new AspectJAfterAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
@@ -287,10 +317,13 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 		// Now to configure the advice...
 		springAdvice.setAspectName(aspectName);
 		springAdvice.setDeclarationOrder(declarationOrder);
+		// 参数名称解析
 		String[] argNames = this.parameterNameDiscoverer.getParameterNames(candidateAdviceMethod);
 		if (argNames != null) {
+			// 解析到了，则缓存
 			springAdvice.setArgumentNamesFromStringArray(argNames);
 		}
+		// 绑定参数
 		springAdvice.calculateArgumentBindings();
 
 		return springAdvice;

@@ -68,7 +68,9 @@ public class BeanFactoryAdvisorRetrievalHelper {
 		// Determine list of advisor bean names, if not cached already.
 		String[] advisorNames = null;
 		synchronized (this) {
+			// 缓存
 			advisorNames = this.cachedAdvisorBeanNames;
+			// 如果为 null ，则尝试从 容器中获取 Advisor
 			if (advisorNames == null) {
 				// Do not initialize FactoryBeans here: We need to leave all regular beans
 				// uninitialized to let the auto-proxy creator apply to them!
@@ -77,13 +79,17 @@ public class BeanFactoryAdvisorRetrievalHelper {
 				this.cachedAdvisorBeanNames = advisorNames;
 			}
 		}
+		// 没有找到，直接返回了
 		if (advisorNames.length == 0) {
 			return new LinkedList<>();
 		}
 
+		// 待返回的结果集
 		List<Advisor> advisors = new LinkedList<>();
 		for (String name : advisorNames) {
+			// 默认返回 true
 			if (isEligibleBean(name)) {
+				// 如果 当前的 bean 正在被创建。则什么也干不了。当前 bean 的增强直接被忽略掉了？？？
 				if (this.beanFactory.isCurrentlyInCreation(name)) {
 					if (logger.isDebugEnabled()) {
 						logger.debug("Skipping currently created advisor '" + name + "'");
@@ -91,6 +97,7 @@ public class BeanFactoryAdvisorRetrievalHelper {
 				}
 				else {
 					try {
+						// 尝试初始化 name
 						advisors.add(this.beanFactory.getBean(name, Advisor.class));
 					}
 					catch (BeanCreationException ex) {

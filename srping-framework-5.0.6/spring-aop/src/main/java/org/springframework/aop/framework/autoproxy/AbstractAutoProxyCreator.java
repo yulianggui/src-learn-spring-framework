@@ -310,7 +310,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	@Override
 	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) throws BeansException {
 		if (bean != null) {
+			// 根据给定的 class 和 name 构建一个 key beanClassName_beanName
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
+			// 如果还没有返回过代理类。则检查是否有必要返回一个代理类
 			if (!this.earlyProxyReferences.contains(cacheKey)) {
 				// 如果有必要，则返回代理类 -- 这里会找到所有的 通知器，如果有匹配的，那么就会返回代理类
 				return wrapIfNecessary(bean, beanName, cacheKey);
@@ -349,13 +351,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @return a proxy wrapping the bean, or the raw bean instance as-is
 	 */
 	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		// 如果已经处理过，直接返回当前 bean
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
 			return bean;
 		}
+		// 如果是自身的 advised ，则不需要增强
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
 		// 再次确认是否为 isInfrastructureClass
+		// 给定的 bean 类是否代表一个基础设施类，基础设施类不应该代理。
+		// 另外配置了指定 bean 不需要代理，则都会跳过
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;
@@ -364,10 +370,13 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		// Create proxy if we have advice.
 		// 返回匹配当前 bean 的所有的 advisor、advice、interceptor
 		// 找到 bean 所有的 通知器、拦截方法、通知等。
+
+		// 这里主要包括两个步骤：1、获取增强方法或者增强器   2、根据获取的增强进行代理
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 		// 如果不为 空，则创建一个代理类，返回
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
+			// 需要创建代理对象
 			Object proxy = createProxy(
 					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
 			// 缓存代理类

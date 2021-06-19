@@ -152,14 +152,20 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 
 		// Set bean properties from init parameters.
 		// 获取 servlet 的 init-parameters 参数，这些都是 servlet 的基础了
+		// ServletConfigPropertyValues 继承了 MutablePropertyValues
 		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
 		// 如果参数不为 空,将当前的 DispatcherServlet 。 这里其实只是校验属性，并没有实际性的使用 bw
 		if (!pvs.isEmpty()) {
 			try {
+				// HttpServletBean。利用 BeanWrapper 来是的可以使用 spring 来把 init-param 中配置的参数
+				// 进行注入;
 				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
 				ResourceLoader resourceLoader = new ServletContextResourceLoader(getServletContext());
+				// 注册属性编辑器。对当前实例（DispatcherServlet） 属性注入过程一旦遇到 Resource 类型的属性就会使用 ResourceEditor 去解析
 				bw.registerCustomEditor(Resource.class, new ResourceEditor(resourceLoader, getEnvironment()));
 				initBeanWrapper(bw);
+				// 通过 bw.setPropertyValues(pvs, true); 之后（这里需要注意，bw 里边的 target 是传入的当前实例，即 this ）这里实际上是对
+				// 当前对象 的属性进行注入赋值； 比如：contextClass，nameSpace、contextConfiguration 等
 				bw.setPropertyValues(pvs, true);
 			}
 			catch (BeansException ex) {
@@ -227,6 +233,8 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		public ServletConfigPropertyValues(ServletConfig config, Set<String> requiredProperties)
 				throws ServletException {
 
+			// requiredProperties 表示 在 servlet 的 init-param 中必须要配置的属性 InitParameterNames
+
 			Set<String> missingProps = (!CollectionUtils.isEmpty(requiredProperties) ?
 					new HashSet<>(requiredProperties) : null);
 
@@ -240,6 +248,7 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 				}
 			}
 
+			// 如果到这里 missingProps 不为空，说明存在一部分 必须要配置的属性，但是 config.getInitParameterNames(); 中不存在
 			// Fail if we are still missing properties.
 			if (!CollectionUtils.isEmpty(missingProps)) {
 				throw new ServletException(

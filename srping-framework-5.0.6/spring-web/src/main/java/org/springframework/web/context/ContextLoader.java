@@ -139,6 +139,8 @@ public class ContextLoader {
 		// This is currently strictly internal and not meant to be customized
 		// by application developers.
 		try {
+			// org.springframework.web.context.ContextLoader
+			// 注意这里传入了 ContextLoader ，而文件的路径位于 resource/org/springframework/web/context 下面
 			ClassPathResource resource = new ClassPathResource(DEFAULT_STRATEGIES_PATH, ContextLoader.class);
 			defaultStrategies = PropertiesLoaderUtils.loadProperties(resource);
 		}
@@ -258,7 +260,7 @@ public class ContextLoader {
 	 * @see #CONFIG_LOCATION_PARAM
 	 */
 	public WebApplicationContext initWebApplicationContext(ServletContext servletContext) {
-		// 判断 servletContext 是否应有根上下文存在，因为 初始化的 WebApplicationContext 会放到 servletContext的这个属性中
+		// 判断 servletContext 是否应有根上下文存在，因为 初始化的 WebApplicationContext 会放到 servletContext 的这个属性中
 		if (servletContext.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE) != null) {
 			throw new IllegalStateException(
 					"Cannot initialize context because there is already a root application context present - " +
@@ -283,20 +285,21 @@ public class ContextLoader {
 			// 如果是 ConfigurableWebApplicationContext
 			if (this.context instanceof ConfigurableWebApplicationContext) {
 				ConfigurableWebApplicationContext cwac = (ConfigurableWebApplicationContext) this.context;
-				// 还没有被激活
+				// 还没有被激活 -- 即还没有有启动过
 				if (!cwac.isActive()) {
 					// The context has not yet been refreshed -> provide services such as
 					// setting the parent context, setting the application context id, etc
-					// 并且 parent 没有配置
+					// 如果 并且 parent 还没有配置
 					if (cwac.getParent() == null) {
 						// The context instance was injected without an explicit parent ->
 						// determine parent for root web application context, if any.
-						// 从根上下文加载双亲
+						// 从根上下文加载双亲 -- 尝试加载 其 parent ； 这里是一个扩展吧
 						ApplicationContext parent = loadParentContext(servletContext);
 						// 设置双亲
 						cwac.setParent(parent);
 					}
-					// 配置和双休 WebApplicationContext
+					// 配置和刷新 WebApplicationContext
+					// 这里的配置指的是设置 xml 文件的路径（resource）
 					configureAndRefreshWebApplicationContext(cwac, servletContext);
 				}
 			}
@@ -350,6 +353,7 @@ public class ContextLoader {
 		// 这里先判断使用什么样的 WebApplicationContext 容器
 		Class<?> contextClass = determineContextClass(sc);
 		// 如果不为 ConfigurableWebApplicationContext 的子类，则直接抛出异常了
+		// 因此如果是通过 全局参数《init-param》 contextClass 定义的 class 不满足，也不会进行覆盖
 		if (!ConfigurableWebApplicationContext.class.isAssignableFrom(contextClass)) {
 			throw new ApplicationContextException("Custom context class [" + contextClass.getName() +
 					"] is not of type [" + ConfigurableWebApplicationContext.class.getName() + "]");
@@ -367,7 +371,7 @@ public class ContextLoader {
 	 * @see org.springframework.web.context.support.XmlWebApplicationContext
 	 */
 	protected Class<?> determineContextClass(ServletContext servletContext) {
-		// 可以通过 sc 的 contextClass 参数指定
+		// 可以通过 sc 的 contextClass 参数指定 -- 进行覆盖
 		String contextClassName = servletContext.getInitParameter(CONTEXT_CLASS_PARAM);
 		if (contextClassName != null) {
 			try {
@@ -379,6 +383,8 @@ public class ContextLoader {
 			}
 		}
 		else {
+			// resources\org\springframework\web\context\ContextLoader.properties
+			// 值为 org.springframework.web.context.WebApplicationContext=org.springframework.web.context.support.XmlWebApplicationContext
 			// 使用默认的，也就是 XmlWebApplicationContext
 			contextClassName = defaultStrategies.getProperty(WebApplicationContext.class.getName());
 			try {
@@ -409,8 +415,10 @@ public class ContextLoader {
 		}
 
 		// 将 ServletContext 绑定到当前的 ConfigurableWebApplicationContext 环境中
+		// 双向绑定了
 		wac.setServletContext(sc);
-		// 呼气 sc 的 contextConfigLocation 这个参数，从这里可以知道，为什么这个参数是固定这么写的
+		// sc 的 contextConfigLocation 这个参数，从这里可以知道，为什么这个参数是固定这么写的
+		// 即我们配置的全局参数 <context-param> 里边的一个 key : contextConfigLocation。因此这个是固定写法
 		String configLocationParam = sc.getInitParameter(CONFIG_LOCATION_PARAM);
 		if (configLocationParam != null) {
 			// 配置 XML 的信息（如果没有，则使用默认的 applicationContext.xml）

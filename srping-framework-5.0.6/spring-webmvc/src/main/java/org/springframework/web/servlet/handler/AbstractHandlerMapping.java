@@ -338,6 +338,7 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 
 
 	/**
+	 * 根据 request 获取 HandlerExecutionChain （里边持有 Handler ）
 	 * Look up a handler for the given request, falling back to the default
 	 * handler if no specific one is found.
 	 * @param request current HTTP request
@@ -347,21 +348,34 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	@Override
 	@Nullable
 	public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+		// 从 getHandlerInternal 中找
 		Object handler = getHandlerInternal(request);
+		// 没找到
 		if (handler == null) {
+			// 使用默认的
 			handler = getDefaultHandler();
 		}
+		// 还是没有，则返回 null
 		if (handler == null) {
 			return null;
 		}
+
+		// 找到了。 如果 handler 为 String ,则说明还没有 转换为 bean 实例，从 ApplicationContext 中获取
+		// Controller
+		// handler 也可能是 HandlerExecutionChain 哦
 		// Bean name or resolved handler?
 		if (handler instanceof String) {
 			String handlerName = (String) handler;
 			handler = obtainApplicationContext().getBean(handlerName);
 		}
 
+		// 封装为 HandlerExecutionChain
 		HandlerExecutionChain executionChain = getHandlerExecutionChain(handler, request);
+
+		// Origin 跨域配置 ，请求头中存在 Origin
+		// 暂时不细看
 		if (CorsUtils.isCorsRequest(request)) {
+			// 拿到全局
 			CorsConfiguration globalConfig = this.globalCorsConfigSource.getCorsConfiguration(request);
 			CorsConfiguration handlerConfig = getCorsConfiguration(handler, request);
 			CorsConfiguration config = (globalConfig != null ? globalConfig.combine(handlerConfig) : handlerConfig);
@@ -410,13 +424,19 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	 * @see #getAdaptedInterceptors()
 	 */
 	protected HandlerExecutionChain getHandlerExecutionChain(Object handler, HttpServletRequest request) {
+
+		// handler 也有可能是 HandlerExecutionChain
 		HandlerExecutionChain chain = (handler instanceof HandlerExecutionChain ?
 				(HandlerExecutionChain) handler : new HandlerExecutionChain(handler));
 
+		// 获取拦截器： 获取 解析 url
 		String lookupPath = this.urlPathHelper.getLookupPathForRequest(request);
+
+		// 当前的 Mapper 中是否配置了 拦截器
 		for (HandlerInterceptor interceptor : this.adaptedInterceptors) {
 			if (interceptor instanceof MappedInterceptor) {
 				MappedInterceptor mappedInterceptor = (MappedInterceptor) interceptor;
+				// 拦截器 是否需要拦截当前的请求
 				if (mappedInterceptor.matches(lookupPath, this.pathMatcher)) {
 					chain.addInterceptor(mappedInterceptor.getInterceptor());
 				}

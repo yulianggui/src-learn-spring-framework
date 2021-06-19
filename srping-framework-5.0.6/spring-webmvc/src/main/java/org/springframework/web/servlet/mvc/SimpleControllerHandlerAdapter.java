@@ -48,7 +48,7 @@ public class SimpleControllerHandlerAdapter implements HandlerAdapter {
 	@Nullable
 	public ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler)
 			throws Exception {
-
+		// 调用 Controller 的 handleRequest 方法处理。要知道 Controller 接口，是最基本的 spring MVC 的使用了
 		return ((Controller) handler).handleRequest(request, response);
 	}
 

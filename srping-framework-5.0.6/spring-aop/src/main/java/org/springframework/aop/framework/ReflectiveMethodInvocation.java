@@ -158,8 +158,12 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	@Override
 	@Nullable
 	public Object proceed() throws Throwable {
+		// proceed 是一个递归调用的过程
+
+		// https://www.tianxiaobo.com/2018/06/22/Spring-AOP-%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90-%E6%8B%A6%E6%88%AA%E5%99%A8%E9%93%BE%E7%9A%84%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B/
+
 		//	We start with an index of -1 and increment early.
-		// 如果当前到了末尾的索引，则调用目标方法
+		// 如果当前到了末尾的索引，则调用目标方法。 如果没有拦截器了。则返回了
 		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
 			return invokeJoinpoint();
 		}
@@ -167,7 +171,7 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		// 索引从 -1 开始的 个拦截器
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
-		//
+		// 如果是 InterceptorAndDynamicMethodMatcher
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
 			// Evaluate dynamic method matcher here: static part will already have
 			// been evaluated and found to match.
@@ -175,11 +179,13 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 					(InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
 			// 满足
 			if (dm.methodMatcher.matches(this.method, this.targetClass, this.arguments)) {
+				// 这里的 参数传递了 this 。因此这里
 				return dm.interceptor.invoke(this);
-			}
+			}C
 			else {
 				// Dynamic matching failed.
 				// Skip this interceptor and invoke the next in the chain.
+				// 跳过拦截器，进入下一个调用链里边的拦截器
 				// 否则递归
 				return proceed();
 			}

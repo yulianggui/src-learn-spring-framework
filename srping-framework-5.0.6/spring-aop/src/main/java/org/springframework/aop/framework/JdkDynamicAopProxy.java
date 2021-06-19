@@ -121,7 +121,12 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		if (logger.isDebugEnabled()) {
 			logger.debug("Creating JDK dynamic proxy: target source is " + this.advised.getTargetSource());
 		}
+		// 创建代理对象了
+
+		// 当前的类（this） 实现了 InvocationHandler 接口。因此我们关注 invoke 方法
+		// 完成代理接口解析： 会增加一些 接口 到 原始类中：比如 SpringProxy.class
 		Class<?>[] proxiedInterfaces = AopProxyUtils.completeProxiedInterfaces(this.advised, true);
+		// 这里是一个优化的过程。查找当前的接口定义中，是否定义了 equals 和 hashCode 方法。并设置标志位
 		findDefinedEqualsAndHashCodeMethods(proxiedInterfaces);
 		return Proxy.newProxyInstance(classLoader, proxiedInterfaces, this);
 	}
@@ -167,7 +172,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 		boolean setProxyContext = false;
 		// 目标源
 		TargetSource targetSource = this.advised.targetSource;
-		// 目标对象
+		// 目标对象：其实就在 targetSource 中
 		Object target = null;
 
 		try {
@@ -175,17 +180,20 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 			// 如果没有实现 equals 方法，但是调用的是 equals 方法
 			if (!this.equalsDefined && AopUtils.isEqualsMethod(method)) {
 				// The target does not implement the equals(Object) method itself.
+				// equals 只有一个参数
 				return equals(args[0]);
 			}
 			else if (!this.hashCodeDefined && AopUtils.isHashCodeMethod(method)) {
 				// The target does not implement the hashCode() method itself.
 				return hashCode();
 			}
-			// 如果是 DecoratingProxy 类
+			// 如果是 DecoratingProxy 类  -- 前面有提到过： 会为当前的代理类的接口再次添加一部分 SpringAop 、DecoratingProxy 等接口。 这些接口无需增强
+			// 这里我们略过
 			else if (method.getDeclaringClass() == DecoratingProxy.class) {
 				// There is only getDecoratedClass() declared -> dispatch to proxy config.
 				return AopProxyUtils.ultimateTargetClass(this.advised);
 			}
+			// 如果是 method.getDeclaringClass 的声明的是一个接口。且为 Advised 接口的扩展
 			else if (!this.advised.opaque && method.getDeclaringClass().isInterface() &&
 					method.getDeclaringClass().isAssignableFrom(Advised.class)) {
 				// Service invocations on ProxyConfig with the proxy config...
@@ -193,8 +201,11 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				return AopUtils.invokeJoinpointUsingReflection(this.advised, method, args);
 			}
 
+
+			// 我们比较关系的逻辑
 			Object retVal;
 
+			// 如果设置了 exposeProxy 为 true
 			if (this.advised.exposeProxy) {
 				// Make invocation available if necessary.
 				oldProxy = AopContext.setCurrentProxy(proxy);
@@ -220,20 +231,25 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// nothing but a reflective operation on the target, and no hot swapping or fancy proxying.
 				// 如果 没有拦截器，则直接调用目标方法
 				Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
-				// 这里的调用相当简单
+				// 这里的调用相当简单. 直接通过反射进行方法调用
 				retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 			}
 			else {
 				// We need to create a method invocation...
 				// 封装为 ReflectiveMethodInvocation
+				// 重要的逻辑
 				invocation = new ReflectiveMethodInvocation(proxy, target, method, args, targetClass, chain);
 				// Proceed to the joinpoint through the interceptor chain.
-				// 调用
+				// 调用：得到返回值
 				retVal = invocation.proceed();
 			}
 
 			// Massage return value if necessary.
+			// 方法的返回类型
 			Class<?> returnType = method.getReturnType();
+
+			// 如果返回的是 this ，即 retVal.equals(target) == true ，并且非 Object 。是一个实例对象。 method 非 RawTargetAccess 声明的方法
+			// 应对返回 代理对象，而不是 target(很简单的理解)
 			if (retVal != null && retVal == target &&
 					returnType != Object.class && returnType.isInstance(proxy) &&
 					!RawTargetAccess.class.isAssignableFrom(method.getDeclaringClass())) {
@@ -243,6 +259,9 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// 特别场景：返回 this
 				retVal = proxy;
 			}
+			// 如果 为retVal == null ， 但是 返回类型不为 Void 且 返回类型 primitive = true
+			// 此方法主要用来判断Class是否为原始类型（boolean、char、byte、short、int、long、float、double）。
+			// 即：原始类型必须返回值，否则不行
 			else if (retVal == null && returnType != Void.TYPE && returnType.isPrimitive()) {
 				throw new AopInvocationException(
 						"Null return value from advice does not match primitive return type for: " + method);

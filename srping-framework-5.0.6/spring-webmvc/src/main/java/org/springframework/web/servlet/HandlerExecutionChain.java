@@ -133,7 +133,9 @@ public class HandlerExecutionChain {
 		if (!ObjectUtils.isEmpty(interceptors)) {
 			for (int i = 0; i < interceptors.length; i++) {
 				HandlerInterceptor interceptor = interceptors[i];
+				// 返回了 false
 				if (!interceptor.preHandle(request, response, this.handler)) {
+					// 触发 afterCompletion 的 方法
 					triggerAfterCompletion(request, response, null);
 					return false;
 				}

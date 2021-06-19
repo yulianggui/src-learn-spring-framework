@@ -49,7 +49,7 @@ public class HttpRequestHandlerAdapter implements HandlerAdapter {
 	@Nullable
 	public ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler)
 			throws Exception {
-
+		// 没有返回值
 		((HttpRequestHandler) handler).handleRequest(request, response);
 		return null;
 	}

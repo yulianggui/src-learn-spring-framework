@@ -49,7 +49,9 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 	@Override
 	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
 
-		// hasNoUserSuppliedProxyInterfaces --> 判断是否有实现自定义的接口
+		// hasNoUserSuppliedProxyInterfaces --> 判断是否有实现自定义的接口 -- 没有也只能走 CGLIB
+		// CGLIB 不能使得 final 类和方法生效哦
+		// config.isOptimize() -- 激活的的优化策略，不推荐
 		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
 			Class<?> targetClass = config.getTargetClass();
 			if (targetClass == null) {
@@ -57,12 +59,12 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 						"Either an interface or a target is required for proxy creation.");
 			}
 
-			// 如果 isInterface 是一个接口 或者 是一个JDK 中的 代理类 Class
+			// 如果 target isInterface 是一个接口（而不是一个 具体的类定义） 或者 它是一个JDK 中的 代理类 Class
 			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
 				// Jdk AopProxy 对象
 				return new JdkDynamicAopProxy(config);
 			}
-			// cglib
+			// cglib。否则使用 CGLIB
 			return new ObjenesisCglibAopProxy(config);
 		}
 		else {
